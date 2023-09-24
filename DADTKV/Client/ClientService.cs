@@ -20,7 +20,9 @@ public class ClientService
             ClientId = clientId,
             ObjectsToRead = { objectsToRead }
         };
-
+        
+        // Comment
+        
         var dadIntList = new List<DadInt>();
         
         foreach (var dadIntObject in objectsToWrite)
