@@ -38,8 +38,13 @@ public class ClientService
 
         request.ObjectsToWrite.AddRange(dadIntList);
         
-        _clientStub.TxSubmit(request);
-        
+        var response = _clientStub.TxSubmit(request);
+
+        foreach (var dadInt in response.ObjectsRead)
+        {
+            Console.WriteLine("Read object: {0} with value {1}", dadInt.Key, dadInt.Value);
+        }
+        Console.WriteLine("Response: {0}", response);
     }
 
     public void Status()

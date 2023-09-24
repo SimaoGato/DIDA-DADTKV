@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{4149098C-99BB-4AAF-B3FD-27F34826ED79}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransactionManager", "TransactionManager\TransactionManager.csproj", "{DA0235DB-168B-4766-A4B6-91B13CC5283D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{4149098C-99BB-4AAF-B3FD-27F34826ED79}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4149098C-99BB-4AAF-B3FD-27F34826ED79}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4149098C-99BB-4AAF-B3FD-27F34826ED79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA0235DB-168B-4766-A4B6-91B13CC5283D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA0235DB-168B-4766-A4B6-91B13CC5283D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA0235DB-168B-4766-A4B6-91B13CC5283D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA0235DB-168B-4766-A4B6-91B13CC5283D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
