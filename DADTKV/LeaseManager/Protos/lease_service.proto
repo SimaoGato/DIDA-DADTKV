@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+service LeaseService {
+  rpc RequestLease(LeaseRequest) returns (LeaseResponse);
+}
+
+message LeaseRequest { 
+  string transactionManagerId = 1;
+  repeated string objectsRequested = 2;
+}
+
+message LeaseResponse {
+  bool ack = 1;
+}

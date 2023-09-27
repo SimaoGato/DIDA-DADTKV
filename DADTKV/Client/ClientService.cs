@@ -21,8 +21,6 @@ public class ClientService
             ObjectsToRead = { objectsToRead }
         };
         
-        // Comment
-        
         var dadIntList = new List<DadInt>();
         
         foreach (var dadIntObject in objectsToWrite)

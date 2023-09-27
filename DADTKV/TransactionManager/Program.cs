@@ -7,10 +7,19 @@ class Program
     {
         const string hostname = "localhost";
         const int port = 5000;
+        
+        string leaseServerHostname = "localhost";
+        int leaseServerPort = 5001;
+        
+        var transactionManagerService = new TransactionManagerService(leaseServerHostname, leaseServerPort);
+        
+        Console.Write("Enter transaction manager ID: ");
+        string transactionManagerId = Console.ReadLine();
+
 
         Server server = new Server
         {
-            Services = { DadtkvClientService.BindService(new ClientServiceImpl()) }, 
+            Services = { DadtkvClientService.BindService(new ClientServiceImpl(transactionManagerId, transactionManagerService)) }, 
             Ports = { new ServerPort(hostname, port, ServerCredentials.Insecure) }
         };
 
