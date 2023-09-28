@@ -4,16 +4,29 @@ using Client;
 
 class Program
 {
-    static private void Main()
+    private static void Main(string[] args)
     {
         string serverHostname = "localhost";
         int serverPort = 5000;
 
         var clientService = new ClientService(serverHostname, serverPort);
 
-        Console.Write("Enter client ID: ");
-        string clientId = Console.ReadLine();
-
+        string clientId = args[0];
+        Console.WriteLine("clientId: " + clientId);
+        
+        var scriptPath = args[1];
+        if (!File.Exists(scriptPath))
+        {
+            Console.WriteLine("The specified script file does not exist.");
+        }
+        //var script = File.ReadAllLines(scriptPath);
+        
+        
+        
+        
+        
+        
+        
         bool exit = false;
 
         while (!exit)
