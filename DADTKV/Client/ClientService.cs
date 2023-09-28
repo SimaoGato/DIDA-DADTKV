@@ -13,7 +13,7 @@ public class ClientService
         _clientStub = new DadtkvClientService.DadtkvClientServiceClient(channel);
     }
 
-    public void TxSubmit(string clientId, List<string> objectsToRead, List<Dictionary<string, int>> objectsToWrite)
+    public void TxSubmit(string clientId, List<string> objectsToRead, Dictionary<string, int> objectsToWrite)
     {
         var request = new TransactionRequest
         {
@@ -28,8 +28,8 @@ public class ClientService
 
             var dadInt = new DadInt
             {
-                Key = dadIntObject.Keys.First(),
-                Value = dadIntObject.Values.First()
+                Key = dadIntObject.Key,
+                Value = dadIntObject.Value
             };
             
             dadIntList.Add(dadInt);

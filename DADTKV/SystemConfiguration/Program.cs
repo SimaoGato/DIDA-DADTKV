@@ -10,7 +10,8 @@ class Program
         // Edit configurations of the program SystemConfiguration and make sure the working dir is [...]DIDA-DADTKV/DADTKV/SystemConfiguration/
         // and add the file name in the 'program arguments'
         // IMPORTANT: The other projects have to be compiled (built)
-        var scriptPath = args[0];
+        var scriptPath = @"..\..\..\"+ args[0];
+        Console.WriteLine(scriptPath);
 
         if (!File.Exists(scriptPath))
         {
@@ -32,15 +33,15 @@ class Program
                 case "P":
                     if (parts[2] == "T")
                     {
-                        processes.Add(parts[1], @"..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " + parts[1] + " " + parts[3]);
+                        processes.Add(parts[1], @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " + parts[1] + " " + parts[3]);
                     }
                     else if (parts[2] == "L")
                     {
-                        processes.Add(parts[1], @"..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " + parts[1] + " " + parts[3]);
+                        processes.Add(parts[1], @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " + parts[1] + " " + parts[3]);
                     }
                     else if (parts[2] == "C")
                     {
-                        processes.Add(parts[1], @"..\Client\bin\Debug\net7.0\Client.exe " + parts[1] + " " + parts[3]);
+                        processes.Add(parts[1], @"..\..\..\..\Client\bin\Debug\net7.0\Client.exe " + parts[1] + " " + parts[3]);
                     }
                     Console.WriteLine("Creating ProcessInfo");
                     break;
