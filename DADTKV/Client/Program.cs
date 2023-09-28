@@ -6,6 +6,7 @@ class Program
 {
     private static void Main(string[] args)
     {
+        // TODO fix this
         string serverHostname = "localhost";
         int serverPort = 5000;
 
@@ -33,22 +34,26 @@ class Program
                     // TODO add this logic to another class
                     var readEls = parts[1].Trim('(', ')').Split(',');
                     var writeEls = parts[2].Trim('(', ')').Split(',');
-                    Console.WriteLine(writeEls[1]);
                     foreach (var el in readEls)
                     {
                         objectsToRead.Add(el.Trim());
                     }
-                    for (int i = 0; i < writeEls.Length; i+=2) {
-                        objectsToWrite.Add(writeEls[i].Trim('<', '>'), int.Parse(writeEls[i+1].Trim('<', '>')));
-                    }
+                    Console.WriteLine(writeEls[0]);
+                    if (writeEls.Length > 1)
+                        for (int i = 0; i < writeEls.Length; i+=2) {
+                            objectsToWrite.Add(writeEls[i].Trim('<', '>'), int.Parse(writeEls[i+1].Trim('<', '>')));
+                        }
+                    Console.WriteLine("objectsToRead: ");
                     foreach (var element in objectsToRead)
                     {
-                        Console.WriteLine(element);
+                        Console.Write(element);
                     }
+                    Console.WriteLine("\nObjectsToWrite: ");
                     foreach (var element in objectsToWrite)
                     {
-                        Console.WriteLine(element.Key + " " + element.Value);
+                        Console.Write(element.Key + "-" + element.Value + " | ");
                     }
+                    Console.WriteLine();
                     // TODO this is still not working
                     clientService.TxSubmit(clientId, objectsToRead, objectsToWrite);
                     break;

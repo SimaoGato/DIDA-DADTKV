@@ -78,10 +78,10 @@ class Program
                     }
                 };
                 Console.WriteLine("x.value: " + x.Value);
+                
                 p.Start();
                 // Send the command to open a new terminal window and run the process
                 p.StandardInput.WriteLine("start " + x.Value);
-                p.StandardInput.WriteLine("pause");
                 p.StandardInput.WriteLine("exit");
 
                 Console.WriteLine("Process started successfully.");
