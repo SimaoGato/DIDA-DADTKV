@@ -3,6 +3,8 @@ using LeaseManager;
 
 class Program
 {
+    // TODO: Save leaseManagers adresses in a dictionary
+    // TODO: receive from args the list of nicks and addresses (the first one should be this lease manager)
     public static void Main(string[] args)
     {   
         Uri lmUri = new Uri(args[1]);
