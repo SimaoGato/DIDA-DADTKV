@@ -29,11 +29,11 @@ public class Acceptor : PaxosService.PaxosServiceBase
         {
             _id = prepare.Id;
             // Has it ever accepted anything?
-            if (_prevAcceptedId == -1)
+            if (_prevAcceptedId == -1) // No
             {
                 promise.Id = _id;
             }
-            else
+            else // Yes
             {
                 promise.Id = _id;
                 promise.PreviousAcceptedId = _prevAcceptedId;
@@ -52,7 +52,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
         {
             accepted.Id = -1; // Ignore request
         }
-        else // Repli with accept Id and value 
+        else // Reply with accept Id and value 
         {
             _id = accept.Id;
             _prevAcceptedId = _id;
