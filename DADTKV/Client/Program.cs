@@ -6,24 +6,36 @@ class Program
 {
     private static void Main(string[] args)
     {
-        // TODO fix this
-        string serverHostname = "localhost";
-        int serverPort = 5000;
-
-        var clientService = new ClientService(serverHostname, serverPort);
-
-        string clientId = args[0];
-        Console.WriteLine("clientId: " + clientId);
+        string clientNick = args[0];
+        string scriptPath = @"..\..\..\" + args[1];
+        int clientId = int.Parse(args[2]);
+        int numberOfTm = int.Parse(args[3]);
+        List<string> TmServers = new List<string>();
+        for(int i = 0; i < numberOfTm; i++)
+        {
+            TmServers.Add(args[5 + i*2]);
+        }
+        string mainTmServer = TmServers[clientId % numberOfTm];
         
-        var scriptPath = @"..\..\..\" + args[1];
+        Console.WriteLine("clientId: " + clientId);
+        Console.WriteLine("mainTmServer: " + mainTmServer);
         Console.WriteLine(Directory.GetCurrentDirectory());
-        Console.WriteLine(scriptPath);
+        Console.WriteLine("scriptPath: " + scriptPath);
+        Console.WriteLine("TmServers: ");
+        foreach (var tmServer in TmServers)
+        {
+            Console.WriteLine(tmServer);
+        }
+
+        var clientService = new ClientService(mainTmServer);
+        
         if (!File.Exists(scriptPath))
         {
             Console.WriteLine("The specified script file does not exist.");
             Thread.Sleep(5000);
             return;
         }
+        
         var script = File.ReadAllLines(scriptPath);
         foreach (var command in script) {
             var parts = command.Split(' '); 
@@ -38,7 +50,7 @@ class Program
                     {
                         objectsToRead.Add(el.Trim());
                     }
-                    Console.WriteLine(writeEls[0]);
+                    //Console.WriteLine(writeEls[0]);
                     if (writeEls.Length > 1)
                         for (int i = 0; i < writeEls.Length; i+=2) {
                             objectsToWrite.Add(writeEls[i].Trim('<', '>'), int.Parse(writeEls[i+1].Trim('<', '>')));
@@ -46,23 +58,32 @@ class Program
                     Console.WriteLine("objectsToRead: ");
                     foreach (var element in objectsToRead)
                     {
-                        Console.Write(element);
+                        Console.WriteLine(element);
                     }
                     Console.WriteLine("\nObjectsToWrite: ");
                     foreach (var element in objectsToWrite)
                     {
-                        Console.Write(element.Key + "-" + element.Value + " | ");
+                        Console.WriteLine(element.Key + "-" + element.Value);
                     }
                     Console.WriteLine();
                     // TODO this is still not working
-                    clientService.TxSubmit(clientId, objectsToRead, objectsToWrite);
+                    clientService.TxSubmit(clientNick, objectsToRead, objectsToWrite);
                     break;
                 case "S":
-                    clientService.Status();
+                    //clientService.Status();
                     break;
                 case "W":
                     Thread.Sleep(int.Parse(parts[1]));
                     break;
+            }
+        }
+        string co = "";
+        while (true)
+        {
+            co = Console.ReadLine();
+            if (co == "q")
+            {
+                break;
             }
         }
         

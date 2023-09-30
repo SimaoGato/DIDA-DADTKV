@@ -7,9 +7,9 @@ public class ClientService
     
     private DadtkvClientService.DadtkvClientServiceClient _clientStub;
     
-    public ClientService(string serverHostname, int serverPort) 
+    public ClientService(string mainTmAddress)
     {
-        var channel = GrpcChannel.ForAddress("http://" + serverHostname + ":" + serverPort.ToString());
+        var channel = GrpcChannel.ForAddress(mainTmAddress);
         _clientStub = new DadtkvClientService.DadtkvClientServiceClient(channel);
     }
 
