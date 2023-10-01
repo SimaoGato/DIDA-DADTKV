@@ -23,10 +23,12 @@ class Program
         var timeSlots = 0;
         var slotDuration = 0;
         DateTime startTime = DateTime.MinValue;
-        Dictionary<string, string> processes = new Dictionary<string, string>();
-        Dictionary<string, string> TMProcesses = new Dictionary<string, string>();
-        Dictionary<string, string> LMProcesses = new Dictionary<string, string>();
-        Dictionary<string, string> CProcesses = new Dictionary<string, string>();
+        string slotBehaviorList = "";
+        int slotBehaviorListCount = 0;
+        //Dictionary<string, string> processes = new List<KeyValuePair<string, string>>();
+        var TMProcesses = new List<KeyValuePair<string, string>>();
+        var LMProcesses = new List<KeyValuePair<string, string>>();
+        var CProcesses = new List<KeyValuePair<string, string>>();
 
         foreach (var line in script)
         {
@@ -37,17 +39,17 @@ class Program
                     if (parts[2] == "T")
                     {
                         //processes.Add(parts[1], @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " + parts[1] + " " + parts[3]);
-                        TMProcesses.Add(parts[1], parts[3]); 
+                        TMProcesses.Add(new KeyValuePair<string, string>(parts[1], parts[3])); 
                     }
                     else if (parts[2] == "L")
                     {
                         //processes.Add(parts[1], @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " + parts[1] + " " + parts[3]);
-                        LMProcesses.Add(parts[1], parts[3]);
+                        LMProcesses.Add(new KeyValuePair<string, string>(parts[1], parts[3]));
                     }
                     else if (parts[2] == "C")
                     {
                         //processes.Add(parts[1], @"..\..\..\..\Client\bin\Debug\net7.0\Client.exe " + parts[1] + " " + parts[3]);
-                        CProcesses.Add(parts[1], parts[3]);
+                        CProcesses.Add(new KeyValuePair<string, string>(parts[1], parts[3]));
                     }
                     Console.WriteLine("Creating ProcessInfo");
                     break;
@@ -64,7 +66,13 @@ class Program
                     Console.WriteLine($"Physical wall time: {startTime}");
                     break;
                 case "F":
-                    Console.WriteLine("Slot behavior");
+                    string slotBehavior = "";
+                    for (int i = 1; i < parts.Length; i++) {
+                        slotBehavior += parts[i];
+                    }
+                    slotBehaviorList += slotBehavior + " ";
+                    slotBehaviorListCount++;
+                    Console.WriteLine($"Slot behavior {slotBehavior}");
                     break;
             }
         }
@@ -108,13 +116,15 @@ class Program
                 
                 Console.WriteLine("start "
                                   + @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " 
-                                  + lm.Key + " " + lm.Value + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs);
+                                  + lm.Key + " " + lm.Value + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
+                                  + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList);
                 
                 p.Start();
                 // Send the command to open a new terminal window and run the process
                 p.StandardInput.WriteLine("start "
                                           + @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " 
-                                          + lm.Key + " " + lm.Value + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs);
+                                          + lm.Key + " " + lm.Value + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
+                                          + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList);
                 p.StandardInput.WriteLine("exit");
 
                 Console.WriteLine("Process started successfully.");
@@ -144,13 +154,15 @@ class Program
                 
                 Console.WriteLine("start "
                                   + @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " 
-                                  + tm.Key + " " + tm.Value + " " + numTMs + " " + tmArgs + " " + numLMs + " " + lmArgs);
+                                  + tm.Key + " " + tm.Value + " " + numTMs + " " + tmArgs + " " + numLMs + " " + lmArgs
+                                  + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList);
                 
                 p.Start();
                 // Send the command to open a new terminal window and run the process
                 p.StandardInput.WriteLine("start "
                                           + @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " 
-                                          + tm.Key + " " + tm.Value + " " + numTMs + " " + tmArgs + " " + numLMs + " " + lmArgs);
+                                          + tm.Key + " " + tm.Value + " " + numTMs + " " + tmArgs + " " + numLMs + " " + lmArgs
+                                          + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList);
                 p.StandardInput.WriteLine("exit");
 
                 Console.WriteLine("Process started successfully.");

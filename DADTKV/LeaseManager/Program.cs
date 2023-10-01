@@ -12,6 +12,9 @@ class Program
         string lmUrl = lmLogic.lmUrl;
         List<string> lmServers = lmLogic.ParseLmServers();
         List<string> tmServers = lmLogic.ParseTmServers();
+        var slotBehavior = lmLogic.ParseSlotBehavior();
+        var timeSlots = lmLogic.timeSlots;
+        var slotDuration = lmLogic.slotDuration;
         
         Console.WriteLine("tmNick: " + lmNick);
         Console.WriteLine("tmUrl: " + lmUrl);
@@ -25,6 +28,14 @@ class Program
         {
             Console.WriteLine(tmServer);
         }
+        Console.WriteLine("slotBehavior: ");
+        foreach (var slot in slotBehavior)
+        {
+            Console.WriteLine(slot.Key + "-" + slot.Value);
+        }
+        Console.WriteLine("timeSlots: " + timeSlots);
+        Console.WriteLine("slotDuration: " + slotDuration);
+        Console.WriteLine("----------");
         
         Uri lmUri = new Uri(lmUrl);
         Console.WriteLine(lmUri.Host + "-" + lmUri.Port);

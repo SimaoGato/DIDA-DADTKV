@@ -5,6 +5,9 @@
         public string lmUrl;
         public int numberOfLm;
         public int numberOfTm;
+        public int timeSlots;
+        public int slotDuration;
+        private int slotBehaviorCount;
 
         public LeaseManagerLogic(string[] args) {
             _args = args;
@@ -12,6 +15,10 @@
             lmUrl = args[1];
             numberOfLm = int.Parse(args[2]);
             numberOfTm = int.Parse(args[3 + numberOfLm * 2]);
+            var argBreaker = Array.IndexOf(args, "-");
+            timeSlots = int.Parse(args[argBreaker + 1]);
+            slotDuration = int.Parse(args[argBreaker + 2]);
+            slotBehaviorCount = int.Parse(args[argBreaker + 3]);
         }
         
         public List<string> ParseTmServers() {
@@ -33,6 +40,24 @@
                 }
             }
             return lmServers;
+        }
+        
+        public List<KeyValuePair<string, string>> ParseSlotBehavior() {
+            var slotBehavior = new List<KeyValuePair<string, string>>();
+            var start = Array.IndexOf(_args, "-") + 4;
+            for (int i = start; i < start + slotBehaviorCount; i++) {
+                int index = _args[i].IndexOf("(");
+                KeyValuePair<string, string> keyValuePair;
+                if (index != -1) {
+                    keyValuePair = new KeyValuePair<string, string>(_args[i].Substring(0, index),
+                        _args[i].Substring(index));
+                }
+                else {
+                    keyValuePair = new KeyValuePair<string, string>(_args[i], "");
+                }
+                slotBehavior.Add(keyValuePair);
+            }
+            return slotBehavior;
         }
     }
 }

@@ -34,7 +34,6 @@
         public List<KeyValuePair<string, int>> ParseObjectsToWrite(string[] parts) {
             var objectsToWrite = new List<KeyValuePair<string, int>>();
             var writeEls = parts[2].Trim('(', ')').Split(',');
-            //Console.WriteLine(writeEls[0]);
             if (writeEls.Length > 1) {
                 for (int i = 0; i < writeEls.Length; i += 2) {
                     var keyValuePair = new KeyValuePair<string, int>(writeEls[i].Trim('<', '>'),
