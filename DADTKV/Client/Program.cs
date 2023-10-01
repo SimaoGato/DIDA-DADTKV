@@ -42,7 +42,7 @@ class Program
             switch (parts[0]) {
                 case "T":
                     var objectsToRead = new List<string>();
-                    var objectsToWrite = new Dictionary<string, int>();
+                    var objectsToWrite = new List<KeyValuePair<string, int>>();
                     // TODO add this logic to another class
                     var readEls = parts[1].Trim('(', ')').Split(',');
                     var writeEls = parts[2].Trim('(', ')').Split(',');
@@ -53,7 +53,9 @@ class Program
                     //Console.WriteLine(writeEls[0]);
                     if (writeEls.Length > 1)
                         for (int i = 0; i < writeEls.Length; i+=2) {
-                            objectsToWrite.Add(writeEls[i].Trim('<', '>'), int.Parse(writeEls[i+1].Trim('<', '>')));
+                            var keyValuePair = new KeyValuePair<string, int>(writeEls[i].Trim('<', '>'),
+                                int.Parse(writeEls[i + 1].Trim('<', '>')));
+                            objectsToWrite.Add(keyValuePair);
                         }
                     Console.WriteLine("objectsToRead: ");
                     foreach (var element in objectsToRead)

@@ -13,7 +13,7 @@ public class ClientService
         _clientStub = new DadtkvClientService.DadtkvClientServiceClient(channel);
     }
 
-    public void TxSubmit(string clientId, List<string> objectsToRead, Dictionary<string, int> objectsToWrite)
+    public void TxSubmit(string clientId, List<string> objectsToRead, List<KeyValuePair<string, int>> objectsToWrite)
     {
         var request = new TransactionRequest
         {
