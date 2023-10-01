@@ -1,29 +1,36 @@
 ﻿namespace Client {
     public class ClientLogic {
         private readonly string[] _clientArgs;
+        public string clientNick;
+        public string scriptPath;
+        public int clientId;
+        public int numberOfTm;
 
         public ClientLogic(string[] args) {
             _clientArgs = args;
+            clientNick = args[0];
+            scriptPath = @"..\..\..\" + args[1];
+            clientId = int.Parse(args[2]);
+            numberOfTm = int.Parse(args[3]);
         }
-        
+
         public List<string> ParseTmServers() {
-            int numberOfTm = int.Parse(_clientArgs[3]);
             List<string> tmServers = new List<string>();
-            for(int i = 0; i < numberOfTm; i++)
-            {
-                tmServers.Add(_clientArgs[5 + i*2]);
+            for (int i = 0; i < this.numberOfTm; i++) {
+                tmServers.Add(_clientArgs[5 + i * 2]);
             }
             return tmServers;
         }
+
         public List<string> ParseObjectsToRead(string[] parts) {
             var objectsToRead = new List<string>();
             var readEls = parts[1].Trim('(', ')').Split(',');
-            foreach (var el in readEls)
-            {
+            foreach (var el in readEls) {
                 objectsToRead.Add(el.Trim());
             }
             return objectsToRead;
         }
+
         public List<KeyValuePair<string, int>> ParseObjectsToWrite(string[] parts) {
             var objectsToWrite = new List<KeyValuePair<string, int>>();
             var writeEls = parts[2].Trim('(', ')').Split(',');

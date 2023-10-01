@@ -6,23 +6,21 @@ class Program
 {
     private static void Main(string[] args)
     {
-        string clientNick = args[0];
-        string scriptPath = @"..\..\..\" + args[1];
-        int clientId = int.Parse(args[2]);
-
         ClientLogic clientLogic = new ClientLogic(args);
         
-        int numberOfTm = int.Parse(args[3]);
-        List<string> TmServers = clientLogic.ParseTmServers();
-        
-        string mainTmServer = TmServers[clientId % numberOfTm];
+        string clientNick = clientLogic.clientNick;
+        string scriptPath = clientLogic.scriptPath;
+        int clientId = clientLogic.clientId;
+        int numberOfTm = clientLogic.numberOfTm;
+        List<string> tmServers = clientLogic.ParseTmServers();
+        string mainTmServer = tmServers[clientId % numberOfTm];
         
         Console.WriteLine("clientId: " + clientId);
         Console.WriteLine("mainTmServer: " + mainTmServer);
         Console.WriteLine(Directory.GetCurrentDirectory());
         Console.WriteLine("scriptPath: " + scriptPath);
         Console.WriteLine("TmServers: ");
-        foreach (var tmServer in TmServers)
+        foreach (var tmServer in tmServers)
         {
             Console.WriteLine(tmServer);
         }

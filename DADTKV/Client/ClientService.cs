@@ -5,7 +5,7 @@ namespace Client;
 public class ClientService
 {
     
-    private DadtkvClientService.DadtkvClientServiceClient _clientStub;
+    private readonly DadtkvClientService.DadtkvClientServiceClient _clientStub;
     
     public ClientService(string mainTmAddress)
     {
@@ -25,7 +25,6 @@ public class ClientService
         
         foreach (var dadIntObject in objectsToWrite)
         {
-
             var dadInt = new DadInt
             {
                 Key = dadIntObject.Key,

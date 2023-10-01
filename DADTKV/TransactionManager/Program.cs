@@ -4,29 +4,19 @@ using TransactionManager;
 class Program
 {
     public static void Main(string[] args) {
+
+        TransactionManagerLogic tmLogic = new TransactionManagerLogic(args);
         
-        string tmNick = args[0];
-        string tmUrl = args[1];
-        int numberOfTm = int.Parse(args[2]);
-        List<string> TmServers = new List<string>();
-        for(int i = 0; i < numberOfTm; i++)
-        {
-            if (args[4 + i * 2] != tmUrl)
-            {
-                TmServers.Add(args[4 + i * 2]);
-            }
-        }
-        int numberOfLm = int.Parse(args[3 + numberOfTm * 2]);
-        List<string> lmServers = new List<string>();
-        for(int i = 0; i < numberOfLm; i++)
-        {
-            lmServers.Add(args[5 + numberOfLm * 2 + i * 2]);
-        }
+        string tmNick = tmLogic.tmNick;
+        string tmUrl = tmLogic.tmUrl;
+        List<string> tmServers =  tmLogic.ParseTmServers();
+        List<string> lmServers = tmLogic.ParseLmServers();
+        
         
         Console.WriteLine("tmNick: " + tmNick);
         Console.WriteLine("tmUrl: " + tmUrl);
         Console.WriteLine("TmServers: ");
-        foreach (var tmServer in TmServers)
+        foreach (var tmServer in tmServers)
         {
             Console.WriteLine(tmServer);
         }
