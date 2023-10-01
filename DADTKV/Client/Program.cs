@@ -9,12 +9,12 @@ class Program
         string clientNick = args[0];
         string scriptPath = @"..\..\..\" + args[1];
         int clientId = int.Parse(args[2]);
+
+        ClientLogic clientLogic = new ClientLogic(args);
+        
         int numberOfTm = int.Parse(args[3]);
-        List<string> TmServers = new List<string>();
-        for(int i = 0; i < numberOfTm; i++)
-        {
-            TmServers.Add(args[5 + i*2]);
-        }
+        List<string> TmServers = clientLogic.ParseTmServers();
+        
         string mainTmServer = TmServers[clientId % numberOfTm];
         
         Console.WriteLine("clientId: " + clientId);
@@ -27,7 +27,7 @@ class Program
             Console.WriteLine(tmServer);
         }
 
-        var clientService = new ClientService(mainTmServer);
+        ClientService clientService = new ClientService(mainTmServer);
         
         if (!File.Exists(scriptPath))
         {
@@ -41,22 +41,9 @@ class Program
             var parts = command.Split(' '); 
             switch (parts[0]) {
                 case "T":
-                    var objectsToRead = new List<string>();
-                    var objectsToWrite = new List<KeyValuePair<string, int>>();
-                    // TODO add this logic to another class
-                    var readEls = parts[1].Trim('(', ')').Split(',');
-                    var writeEls = parts[2].Trim('(', ')').Split(',');
-                    foreach (var el in readEls)
-                    {
-                        objectsToRead.Add(el.Trim());
-                    }
-                    //Console.WriteLine(writeEls[0]);
-                    if (writeEls.Length > 1)
-                        for (int i = 0; i < writeEls.Length; i+=2) {
-                            var keyValuePair = new KeyValuePair<string, int>(writeEls[i].Trim('<', '>'),
-                                int.Parse(writeEls[i + 1].Trim('<', '>')));
-                            objectsToWrite.Add(keyValuePair);
-                        }
+                    var objectsToRead = clientLogic.ParseObjectsToRead(parts);
+                    var objectsToWrite = clientLogic.ParseObjectsToWrite(parts);
+                    
                     Console.WriteLine("objectsToRead: ");
                     foreach (var element in objectsToRead)
                     {
@@ -79,10 +66,10 @@ class Program
                     break;
             }
         }
-        string co = "";
+        
         while (true)
         {
-            co = Console.ReadLine();
+            var co = Console.ReadLine();
             if (co == "q")
             {
                 break;
