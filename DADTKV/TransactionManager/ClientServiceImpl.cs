@@ -5,15 +5,16 @@ namespace TransactionManager;
 public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
 {
     private readonly object _dadIntMapLock = new object(); //TODO: Maybe change
-    private Dictionary<string, long> _dadIntMap = new Dictionary<string, long>();
     
     private TransactionManagerService _transactionManagerService;
     private string _transactionManagerId;
+    private TransactionManagerState _transactionManagerState;
     
-    public ClientServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService)
+    public ClientServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, TransactionManagerState transactionManagerState)
     {
         _transactionManagerId = transactionManagerId;
         _transactionManagerService = transactionManagerService;
+        _transactionManagerState = transactionManagerState;
     }
     
     public override Task<TransactionResponse> TxSubmit(TransactionRequest request, ServerCallContext context)
@@ -43,13 +44,13 @@ public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
             {
                 Console.WriteLine("Reading object: {0}", dadIntKey);
 
-                if (_dadIntMap.ContainsKey(dadIntKey))
+                if (_transactionManagerState.ContainsKey(dadIntKey))
                 {
 
                     DadInt dadInt = new DadInt
                     {
                         Key = dadIntKey,
-                        Value = _dadIntMap[dadIntKey]
+                        Value = _transactionManagerState.ReadOperation(dadIntKey)
                     };
 
                     responseDadIntList.Add(dadInt);
@@ -64,7 +65,7 @@ public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
                 long value = dadInt.Value;
 
                 objectsRequested.Add(key);
-                _dadIntMap[key] = value;
+                _transactionManagerState.WriteOperation(key, value);
                 Console.WriteLine("Writing object: {0} with value {1}", key, value);
             }
         }

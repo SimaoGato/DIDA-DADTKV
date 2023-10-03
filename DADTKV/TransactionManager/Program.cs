@@ -6,6 +6,7 @@ class Program
     public static void Main(string[] args) {
 
         TransactionManagerLogic tmLogic = new TransactionManagerLogic(args);
+        TransactionManagerState tmState = new TransactionManagerState();
         
         string tmNick = tmLogic.tmNick;
         string tmUrl = tmLogic.tmUrl;
@@ -44,7 +45,7 @@ class Program
 
         Server server = new Server
         {
-            Services = { DadtkvClientService.BindService(new ClientServiceImpl(tmNick, transactionManagerService)) }, 
+            Services = { DadtkvClientService.BindService(new ClientServiceImpl(tmNick, transactionManagerService, tmState)) }, 
             Ports = { new ServerPort(tmUri.Host, tmUri.Port, ServerCredentials.Insecure) }
         };
 
