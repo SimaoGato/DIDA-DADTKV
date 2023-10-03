@@ -5,6 +5,7 @@
         public string scriptPath;
         public int clientId;
         public int numberOfTm;
+        public DateTime startTime;
 
         public ClientLogic(string[] args) {
             _clientArgs = args;
@@ -12,6 +13,7 @@
             scriptPath = @"..\..\..\" + args[1];
             clientId = int.Parse(args[2]);
             numberOfTm = int.Parse(args[3]);
+            startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
         }
 
         public List<string> ParseTmServers() {

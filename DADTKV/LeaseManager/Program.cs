@@ -1,13 +1,33 @@
 ﻿using Grpc.Core;
 using LeaseManager;
+using Timer = System.Timers.Timer;
 
 class Program
 {
     // TODO: Save leaseManagers adresses in a dictionary
     // TODO: receive from args the list of nicks and addresses (the first one should be this lease manager)
+
+    private LeaseManagerLogic lmLogic;
+    static ManualResetEvent waitHandle = new ManualResetEvent(false);
+    
+    private Program(string[] args) 
+    {
+        lmLogic = new LeaseManagerLogic(args);
+    }
+    
     public static void Main(string[] args) {
-        LeaseManagerLogic lmLogic = new LeaseManagerLogic(args);
-        
+        Program program = new Program(args);
+        TimeSpan timeToStart = program.lmLogic.startTime - DateTime.Now;
+        int msToWait = (int)timeToStart.TotalMilliseconds;
+        Console.WriteLine($"Starting in {timeToStart} s");
+        Timer slotTimer = new Timer(msToWait);
+        slotTimer.Elapsed += (_, _) => program.StartProgram();
+        slotTimer.AutoReset = false;
+        slotTimer.Start();
+        waitHandle.WaitOne();
+    }
+
+    private void StartProgram() {
         string lmNick = lmLogic.lmNick;
         string lmUrl = lmLogic.lmUrl;
         List<string> lmServers = lmLogic.ParseLmServers();
@@ -48,10 +68,27 @@ class Program
 
         server.Start();
 
+        // TODO see if it has to be synchronized
+        int counter = 0;
+        Timer slotTimer = new Timer(slotDuration);
+        slotTimer.Elapsed += (sender, e) =>
+        {
+            foo(); // TODO change to paxos func
+            counter++;
+            if (counter >= timeSlots) slotTimer.Stop();
+        };
+        slotTimer.AutoReset = true;
+        slotTimer.Start();
+        
         Console.WriteLine("Starting Lease Manager on port: {0}", lmUri.Port);
         Console.WriteLine("Press any key to stop...");
         Console.ReadKey();
 
         server.ShutdownAsync().Wait();
+        waitHandle.Set();
+    }
+
+    static void foo() {
+        Console.WriteLine("ran function");
     }
 }

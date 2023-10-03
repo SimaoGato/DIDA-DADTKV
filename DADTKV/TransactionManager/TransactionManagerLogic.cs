@@ -10,7 +10,10 @@ namespace TransactionManager {
         public int timeSlots;
         public int slotDuration;
         private int slotBehaviorCount;
+        public DateTime startTime;
+        
         public TransactionManagerLogic(string[] args) {
+            // TODO REMOVE TIME SLOTS PARSING FROM TM
             _args = args;
             tmNick = args[0];
             tmUrl = args[1];
@@ -20,6 +23,7 @@ namespace TransactionManager {
             timeSlots = int.Parse(args[argBreaker + 1]);
             slotDuration = int.Parse(args[argBreaker + 2]);
             slotBehaviorCount = int.Parse(args[argBreaker + 3]);
+            startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
         }
 
         public List<string> ParseTmServers() {

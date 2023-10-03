@@ -1,11 +1,30 @@
 ﻿using Grpc.Core;
 using TransactionManager;
+using Timer = System.Timers.Timer;
 
-class Program
-{
+class Program {
+
+    private TransactionManagerLogic tmLogic;
+    static ManualResetEvent waitHandle = new ManualResetEvent(false);
+    
+    private Program(string[] args) 
+    {
+        tmLogic = new TransactionManagerLogic(args);
+    }
+    
     public static void Main(string[] args) {
+        Program program = new Program(args);
+        TimeSpan timeToStart = program.tmLogic.startTime - DateTime.Now;
+        int msToWait = (int)timeToStart.TotalMilliseconds;
+        Console.WriteLine($"Starting in {timeToStart} s");
+        Timer slotTimer = new Timer(msToWait);
+        slotTimer.Elapsed += (_, _) => program.StartProgram();
+        slotTimer.AutoReset = false;
+        slotTimer.Start();
+        waitHandle.WaitOne();
+    }
 
-        TransactionManagerLogic tmLogic = new TransactionManagerLogic(args);
+    private void StartProgram() {
         TransactionManagerState tmState = new TransactionManagerState();
         
         string tmNick = tmLogic.tmNick;
@@ -56,5 +75,6 @@ class Program
         Console.ReadKey();
 
         server.ShutdownAsync().Wait();
+        waitHandle.Set();
     }
 }
