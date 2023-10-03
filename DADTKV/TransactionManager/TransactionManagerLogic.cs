@@ -38,7 +38,7 @@ namespace TransactionManager {
             List<string> lmServers = new List<string>();
             for(int i = 0; i < numberOfLm; i++)
             {
-                lmServers.Add(_args[5 + numberOfLm * 2 + i * 2]);
+                lmServers.Add(_args[5 + numberOfTm * 2 + i * 2]);
             }
             return lmServers;
         }
