@@ -67,7 +67,7 @@ class Program
                     // TODO change this later to the script time
                     //startTime = parts[1];
                     DateTime currentDate = DateTime.Now;
-                    DateTime futureDate = currentDate.AddSeconds(10);
+                    DateTime futureDate = currentDate.AddSeconds(20);
                     startTime = futureDate.ToString("HH:mm:ss");
                     Console.WriteLine($"Physical wall time: {parts[1]}---{startTime}");
                     break;
@@ -102,7 +102,8 @@ class Program
             numLMs++;
             lmArgs += lm.Key + " " + lm.Value + " ";
         }
-        
+
+        int lmId = 0;
         foreach (var lm in LMProcesses)
         {
             try
@@ -122,7 +123,7 @@ class Program
                 
                 Console.WriteLine("start "
                                   + @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " 
-                                  + lm.Key + " " + lm.Value + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
+                                  + lm.Key + " " + lm.Value + " " + lmId + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
                                   + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList
                                   + " " + startTime);
                 
@@ -130,11 +131,12 @@ class Program
                 // Send the command to open a new terminal window and run the process
                 p.StandardInput.WriteLine("start "
                                           + @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " 
-                                          + lm.Key + " " + lm.Value + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
+                                          + lm.Key + " " + lm.Value + " " + lmId + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
                                           + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList
                                           + " " + startTime);
                 p.StandardInput.WriteLine("exit");
-
+                
+                lmId++;
                 Console.WriteLine("Process started successfully.");
             }
             catch (Exception e)
