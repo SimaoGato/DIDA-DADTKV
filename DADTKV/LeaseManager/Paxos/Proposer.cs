@@ -6,7 +6,6 @@ public class Proposer
 {
     private List<PaxosService.PaxosServiceClient> _stubs =
         new List<PaxosService.PaxosServiceClient>();
-    private bool _isLeader; // TODO: Implement leader logic
     public int _IDp; 
     private int _IDa = -1;
     public int _value; // TODO: Change to buffer for the leaseRequests
@@ -30,6 +29,24 @@ public class Proposer
         _acceptor = acceptor;
     }
 
+    public void StartPaxos()
+    {
+        var leaderId = (_acceptor.LeaderID % _nServers);
+        
+        Console.WriteLine("LeaderID: {0} Acceptor-LeaderID: {1}", leaderId, _acceptor.LeaderID);
+        
+        if (_acceptor.LeaderID == -1)
+        {
+            Console.WriteLine("START WITH PHASE ONE 1");
+            PhaseOne();
+        }
+        else if (leaderId == (_IDp % _nServers))
+        {
+            Console.WriteLine("START WITH PHASE ONE 2");
+            PhaseTwo();
+        }
+    }
+
     public void PhaseOne()
     {
         // Want to propose a value, send prepare ID
@@ -38,6 +55,8 @@ public class Proposer
             IDp = _IDp
         };
         
+        Console.WriteLine("(Proposer):Paxos prepare with IDp: {0}", _IDp);
+            
         int count = 0; // Count itself (the acceptor)
         //-------------------------------------------------- 
         var promise = _acceptor.DoPhaseOne(prepare);
@@ -108,12 +127,23 @@ public class Proposer
         };
         
         Console.WriteLine("(Proposer):Value to be accepted: {0}", _value);
+        
+        // ----------------------------------------------
+        int count = 0; // Count itself (the acceptor)
+        var accepted = _acceptor.DoPhaseTwo(accept);
+        
+        // Confirmation of acceptance ?
+        if (accepted.IDp == _IDp) // Yes
+        {
+            // do something
+            count++;
+        }
+        
         // Broadcast attempt to accept
-        // TODO: Maybe change to multi threading (?)
-        int count = 0;
         foreach (var stub in _stubs)
         {
-            var accepted = stub.PaxosPhaseTwo(accept);
+            Console.WriteLine("(Proposer):Value to be accepted: {0}", _value);
+            accepted = stub.PaxosPhaseTwo(accept);
             
             // Confirmation of acceptance ?
             if (accepted.IDp == _IDp) // Yes

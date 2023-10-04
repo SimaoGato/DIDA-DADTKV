@@ -4,9 +4,17 @@ namespace LeaseManager.Paxos;
 
 public class Acceptor : PaxosService.PaxosServiceBase
 {
+    private int _leaderID = -1; 
     public int _IDp = -1;
     public int _IDa = -1;
     public int _value = -1;
+
+    public int LeaderID
+    {
+        get { return _leaderID;  }
+        set { _leaderID = value;}
+    }
+    
     public override Task<Promise> PaxosPhaseOne(Prepare prepare, ServerCallContext context)
     {
         return Task.FromResult(DoPhaseOne(prepare));
@@ -49,7 +57,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
         return promise;
     }
     
-    private Accepted DoPhaseTwo(Accept accept)
+    public Accepted DoPhaseTwo(Accept accept)
     {
         Console.WriteLine("(Acceptor):Paxos accept received with IDp: {0}", accept.IDp);
         Accepted accepted = new Accepted();
@@ -66,6 +74,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
             _value = accept.Value;
             accepted.IDp = _IDp;
             accepted.Value = _value;
+            _leaderID = _IDp;
             Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", _value, _IDp);
         }
         
