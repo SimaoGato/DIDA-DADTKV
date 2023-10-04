@@ -47,38 +47,34 @@ public class Proposer
         }
     }
 
-    public void PhaseOne()
+    public async void PhaseOne()
     {
+        Console.WriteLine("PHASE ONE 1 TIMEOUT: {0}", timeout);
         // Want to propose a value, send prepare ID
         var prepare = new Prepare
         {
             IDp = _IDp
         };
         
-        Console.WriteLine("(Proposer):Paxos prepare with IDp: {0}", _IDp);
-            
-        int count = 0; // Count itself (the acceptor)
-        //-------------------------------------------------- 
-        var promise = _acceptor.DoPhaseOne(prepare);
-        
-        // Received a promise (with its ID)?
-        if (promise.IDp == _IDp) // Yes, update count
-        {
-            count++;
-            // Did it receive Promise _IDp accepted IDa, value?
-            // It needs to update the _value with the Highest IDa (PreviousAcceptedID) that it got
-            if (promise.IDa != -1 && (promise.IDa > _IDa)) 
-            {
-                _value = promise.Value; // Yes, update value
-                Console.WriteLine("(Proposer):Value has changed: {0}", _value);
-            }
-        }
-        //--------------------------------------------------
-        // Broadcast attempt
+        List<Task<Promise>> sendTasks = new List<Task<Promise>>();
+        sendTasks.Add(new Task<Promise>(() => _acceptor.DoPhaseOne(prepare)));
         foreach (var stub in _stubs)
         {
+            sendTasks.Add(new Task<Promise>(() => stub.PaxosPhaseOne(prepare)));
+        }
+
+        foreach (var task in sendTasks)
+        {
             Console.WriteLine("(Proposer):Paxos prepare with IDp: {0}", _IDp);
-            promise = stub.PaxosPhaseOne(prepare);
+            task.Start(); 
+        }
+        
+        await Task.WhenAll(sendTasks);
+
+        int count = 0; // Count itself (the acceptor)
+        foreach (var resultTask in sendTasks)
+        {
+            Promise promise = await resultTask;
             Console.WriteLine("(Proposer):Promise received with IDp: {0}", promise.IDp);
             
             // Received a promise (with its ID)?
@@ -94,6 +90,7 @@ public class Proposer
                 }
             }
         }
+        
         Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, _value);
         
         // Did it receive promises from a majority?
@@ -117,8 +114,9 @@ public class Proposer
         }
     }
 
-    private void PhaseTwo()
+    private async void PhaseTwo()
     {
+        Console.WriteLine("PHASE TWO 2 TIMEOUT: {0}", timeout);
         Console.WriteLine("(Proposer):PhaseTwo Value: {0}", _value);
         var accept = new Accept
         {
@@ -126,24 +124,25 @@ public class Proposer
             Value = _value
         };
         
-        Console.WriteLine("(Proposer):Value to be accepted: {0}", _value);
-        
-        // ----------------------------------------------
-        int count = 0; // Count itself (the acceptor)
-        var accepted = _acceptor.DoPhaseTwo(accept);
-        
-        // Confirmation of acceptance ?
-        if (accepted.IDp == _IDp) // Yes
-        {
-            // do something
-            count++;
-        }
-        
-        // Broadcast attempt to accept
+        List<Task<Accepted>> sendTasks = new List<Task<Accepted>>();
+        sendTasks.Add(new Task<Accepted>(() => _acceptor.DoPhaseTwo(accept))); 
         foreach (var stub in _stubs)
         {
+            sendTasks.Add(new Task<Accepted>(() => stub.PaxosPhaseTwo(accept)));
+        }
+                                                          
+        foreach (var task in sendTasks)
+        {
             Console.WriteLine("(Proposer):Value to be accepted: {0}", _value);
-            accepted = stub.PaxosPhaseTwo(accept);
+            task.Start(); 
+        }
+                                                                  
+        await Task.WhenAll(sendTasks);
+
+        int count = 0; // Count itself (the acceptor)
+        foreach (var resultTask in sendTasks)
+        {
+            Accepted accepted = await resultTask;
             
             // Confirmation of acceptance ?
             if (accepted.IDp == _IDp) // Yes
