@@ -5,224 +5,192 @@ using System.IO;
 
 class Program
 {
-    public static void Main(string[] args)
+    static void Main(string[] args)
     {
-        // Edit configurations of the program SystemConfiguration and make sure the working dir is [...]DIDA-DADTKV/DADTKV/SystemConfiguration/
-        // and add the file name in the 'program arguments'
-        // IMPORTANT: The other projects have to be compiled (built)
-        var scriptPath = @"..\..\..\"+ args[0];
-        Console.WriteLine(scriptPath);
-
+        var scriptPath = GetScriptPath(args);
         if (!File.Exists(scriptPath))
         {
             Console.WriteLine("The specified script file does not exist.");
             return;
         }
+
         var script = File.ReadAllLines(scriptPath);
+        var config = ParseScript(script);
 
-        var timeSlots = 0;
-        var slotDuration = 0;
-        //DateTime startTime = DateTime.MinValue;
-        string startTime = "";
-        string slotBehaviorList = "";
-        int slotBehaviorListCount = 0;
-        //Dictionary<string, string> processes = new List<KeyValuePair<string, string>>();
-        var TMProcesses = new List<KeyValuePair<string, string>>();
-        var LMProcesses = new List<KeyValuePair<string, string>>();
-        var CProcesses = new List<KeyValuePair<string, string>>();
+        StartLeaseManagers(config.LeaseManagers, config.TransactionManagers, config.Clients, config.TimeSlots, config.SlotDuration, config.StartTime, config.SlotBehaviors);
+        StartTransactionManagers(config.TransactionManagers, config.LeaseManagers, config.TimeSlots, config.SlotDuration, config.StartTime, config.SlotBehaviors);
+        StartClients(config.Clients, config.TransactionManagers, config.StartTime);
+    }
 
+    static string GetScriptPath(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            throw new ArgumentException("No script file specified.");
+        }
+
+        return Path.Combine("..", "..", "..", args[0]);
+    }
+
+    static Config ParseScript(string[] script)
+    {
+        var config = new Config();
         foreach (var line in script)
         {
             var parts = line.Split(' ');
             switch (parts[0])
             {
                 case "P":
-                    if (parts[2] == "T")
-                    {
-                        //processes.Add(parts[1], @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " + parts[1] + " " + parts[3]);
-                        TMProcesses.Add(new KeyValuePair<string, string>(parts[1], parts[3])); 
-                    }
-                    else if (parts[2] == "L")
-                    {
-                        //processes.Add(parts[1], @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " + parts[1] + " " + parts[3]);
-                        LMProcesses.Add(new KeyValuePair<string, string>(parts[1], parts[3]));
-                    }
-                    else if (parts[2] == "C")
-                    {
-                        //processes.Add(parts[1], @"..\..\..\..\Client\bin\Debug\net7.0\Client.exe " + parts[1] + " " + parts[3]);
-                        CProcesses.Add(new KeyValuePair<string, string>(parts[1], parts[3]));
-                    }
-                    Console.WriteLine("Creating ProcessInfo");
+                    AddProcess(parts[1], parts[2], parts[3], config);
                     break;
                 case "S":
-                    timeSlots = int.Parse(parts[1]);
-                    Console.WriteLine($"How many time slots: {timeSlots}");
+                    config.TimeSlots = int.Parse(parts[1]);
                     break;
                 case "D":
-                    slotDuration = int.Parse(parts[1]);
-                    Console.WriteLine($"Duration of each time slot (ms): {slotDuration}");
+                    config.SlotDuration = int.Parse(parts[1]);
                     break;
                 case "T":
-                    //startTime = DateTime.ParseExact(parts[1], "HH:mm:ss", null);
-                    // TODO change this later to the script time
-                    //startTime = parts[1];
                     DateTime currentDate = DateTime.Now;
-                    DateTime futureDate = currentDate.AddSeconds(20);
-                    startTime = futureDate.ToString("HH:mm:ss");
-                    Console.WriteLine($"Physical wall time: {parts[1]}---{startTime}");
+                    DateTime startTime = currentDate.AddSeconds(5);
+                    config.StartTime = startTime;
                     break;
                 case "F":
-                    string slotBehavior = "";
-                    for (int i = 1; i < parts.Length; i++) {
-                        slotBehavior += parts[i];
-                    }
-                    slotBehaviorList += slotBehavior + " ";
-                    slotBehaviorListCount++;
-                    Console.WriteLine($"Slot behavior {slotBehavior}");
+                    AddSlotBehavior(parts, config);
                     break;
             }
         }
 
-        string tmArgs = "";
-        int numTMs = 0;
-        
-        foreach (var tm in TMProcesses)
-        {
-            numTMs++;
-            tmArgs += tm.Key + " " + tm.Value + " ";
-        }
-        
-        Console.WriteLine("tmArgs: " + tmArgs);
-        
-        string lmArgs = "";
-        int numLMs = 0;
-        
-        foreach (var lm in LMProcesses)
-        {
-            numLMs++;
-            lmArgs += lm.Key + " " + lm.Value + " ";
-        }
+        return config;
+    }
 
-        int lmId = 0;
-        foreach (var lm in LMProcesses)
+    static void AddProcess(string name, string type, string args, Config config)
+    {
+        switch (type)
         {
-            try
+            case "T":
+                config.TransactionManagers.Add(new ProcessInfo(name, args));
+                break;
+            case "L":
+                config.LeaseManagers.Add(new ProcessInfo(name, args));
+                break;
+            case "C":
+                config.Clients.Add(new ProcessInfo(name, args));
+                break;
+        }
+    }
+
+    static void AddSlotBehavior(string[] parts, Config config)
+    {
+        var slotBehavior = string.Join("", parts, 1, parts.Length - 1);
+        config.SlotBehaviors.Add(slotBehavior);
+    }
+
+    static void StartLeaseManagers(List<ProcessInfo> leaseManagers, List<ProcessInfo> transactionManagers, List<ProcessInfo> clients, int timeSlots, int slotDuration, DateTime startTime, List<string> slotBehaviors)
+    {
+        var lmArgs = GetProcessArgs(leaseManagers);
+        var tmArgs = GetProcessArgs(transactionManagers);
+
+        for (int i = 0; i < leaseManagers.Count; i++)
+        {
+            var lm = leaseManagers[i];
+            var lmId = i;
+            var numLMs = leaseManagers.Count;
+            var numTMs = transactionManagers.Count;
+
+            var arguments = $"{lm.Key} {lm.Value} {lmId} {numLMs} {lmArgs} {numTMs} {tmArgs} - {timeSlots} {slotDuration} {slotBehaviors.Count} {string.Join(" ", slotBehaviors)} {startTime:HH:mm:ss}";
+
+            StartProcess("LeaseManager", arguments);
+        }
+    }
+
+    static void StartTransactionManagers(List<ProcessInfo> transactionManagers, List<ProcessInfo> leaseManagers, int timeSlots, int slotDuration, DateTime startTime, List<string> slotBehaviors)
+    {
+        var tmArgs = GetProcessArgs(transactionManagers);
+        var lmArgs = GetProcessArgs(leaseManagers);
+
+        for (int i = 0; i < transactionManagers.Count; i++)
+        {
+            var tm = transactionManagers[i];
+            var numTMs = transactionManagers.Count;
+            var numLMs = leaseManagers.Count;
+
+            var arguments = $"{tm.Key} {tm.Value} {numTMs} {tmArgs} {numLMs} {lmArgs} - {timeSlots} {slotDuration} {slotBehaviors.Count} {string.Join(" ", slotBehaviors)} {startTime:HH:mm:ss}";
+
+            StartProcess("TransactionManager", arguments);
+        }
+    }
+
+    static void StartClients(List<ProcessInfo> clients, List<ProcessInfo> transactionManagers, DateTime startTime)
+    {
+        var tmArgs = GetProcessArgs(transactionManagers);
+
+        for (int i = 0; i < clients.Count; i++)
+        {
+            var c = clients[i];
+            var numCs = i;
+            var numTMs = transactionManagers.Count;
+
+            var arguments = $"{c.Key} {c.Value} {numCs} {numTMs} {tmArgs} {startTime:HH:mm:ss}";
+
+            StartProcess("Client", arguments);
+        }
+    }
+
+    static string GetProcessArgs(List<ProcessInfo> processes)
+    {
+        return string.Join(" ", processes.Select(p => $"{p.Key} {p.Value}"));
+    }
+
+    static void StartProcess(string fileName, string arguments)
+    {
+        try
+        {
+            var process = new Process()
             {
-                Process p = new Process()
+                StartInfo = new ProcessStartInfo
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        RedirectStandardInput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                    }
-                };
-                Console.WriteLine("c.value: " + lm.Value); // key=nick, value=address
-                
-                Console.WriteLine("start "
-                                  + @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " 
-                                  + lm.Key + " " + lm.Value + " " + lmId + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
-                                  + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList
-                                  + " " + startTime);
-                
-                p.Start();
-                // Send the command to open a new terminal window and run the process
-                p.StandardInput.WriteLine("start "
-                                          + @"..\..\..\..\LeaseManager\bin\Debug\net7.0\LeaseManager.exe " 
-                                          + lm.Key + " " + lm.Value + " " + lmId + " " + numLMs + " " + lmArgs + " " + numTMs + " " + tmArgs
-                                          + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList
-                                          + " " + startTime);
-                p.StandardInput.WriteLine("exit");
-                
-                lmId++;
-                Console.WriteLine("Process started successfully.");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e + "\n");
-            }
+                    FileName = "cmd.exe",
+                    RedirectStandardInput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+            
+            var args = "start " + @"..\..\..\..\" + fileName + @"\bin\Debug\net7.0\" + fileName + ".exe " + arguments;
+
+            process.Start();
+            process.StandardInput.WriteLine(args);
+            process.StandardInput.WriteLine("exit");
+
+            Console.WriteLine($"{args}");
         }
-        
-        foreach (var tm in TMProcesses)
+        catch (Exception e)
         {
-            try
-            {
-                Process p = new Process()
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        RedirectStandardInput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                    }
-                };
-                Console.WriteLine("c.value: " + tm.Value); // key=nick, value=address
-                
-                Console.WriteLine("start "
-                                  + @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " 
-                                  + tm.Key + " " + tm.Value + " " + numTMs + " " + tmArgs + " " + numLMs + " " + lmArgs
-                                  + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList
-                                  + " " + startTime);
-                
-                p.Start();
-                // Send the command to open a new terminal window and run the process
-                p.StandardInput.WriteLine("start "
-                                          + @"..\..\..\..\TransactionManager\bin\Debug\net7.0\TransactionManager.exe " 
-                                          + tm.Key + " " + tm.Value + " " + numTMs + " " + tmArgs + " " + numLMs + " " + lmArgs
-                                          + "- " + timeSlots + " " + slotDuration + " " + slotBehaviorListCount + " " + slotBehaviorList
-                                          + " " + startTime);
-                p.StandardInput.WriteLine("exit");
-
-                Console.WriteLine("Process started successfully.");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e + "\n");
-            }
+            Console.WriteLine($"Failed to start {fileName} process: {e}");
         }
+    }
+}
 
-        int numCs = 0;
-        foreach (var c in CProcesses)
-        {
-            try
-            {
-                Process p = new Process()
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        RedirectStandardInput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                    }
-                };
-                Console.WriteLine("c.value: " + c.Value); // key=nick, value=address
-                
-                Console.WriteLine("start "
-                                  + @"..\..\..\..\Client\bin\Debug\net7.0\Client.exe " 
-                                  + c.Key + " " + c.Value + " " + numCs + " " + numTMs + " " + tmArgs
-                                  + " " + startTime);
-                
-                p.Start();
-                // Send the command to open a new terminal window and run the process
-                p.StandardInput.WriteLine("start "
-                                          + @"..\..\..\..\Client\bin\Debug\net7.0\Client.exe " 
-                                          + c.Key + " " + c.Value + " " + numCs + " " + numTMs + " " + tmArgs
-                                          + " " + startTime);
-                p.StandardInput.WriteLine("exit");
+class Config
+{
+    public List<ProcessInfo> LeaseManagers { get; } = new List<ProcessInfo>();
+    public List<ProcessInfo> TransactionManagers { get; } = new List<ProcessInfo>();
+    public List<ProcessInfo> Clients { get; } = new List<ProcessInfo>();
+    public int TimeSlots { get; set; }
+    public int SlotDuration { get; set; }
+    public DateTime StartTime { get; set; }
+    public List<string> SlotBehaviors { get; } = new List<string>();
+}
 
-                Console.WriteLine("Process started successfully.");
-                numCs++;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e + "\n");
-            }
-        }
+class ProcessInfo
+{
+    public string Key { get; }
+    public string Value { get; }
+
+    public ProcessInfo(string key, string value)
+    {
+        Key = key;
+        Value = value;
     }
 }
