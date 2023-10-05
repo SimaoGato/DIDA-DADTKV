@@ -5,15 +5,22 @@ namespace Client;
 public class ClientService
 {
     
-    private readonly DadtkvClientService.DadtkvClientServiceClient _clientStub;
+    private readonly ClientTransactionService.ClientTransactionServiceClient _clientTxStub;
+    private readonly List<ClientStatusService.ClientStatusServiceClient> _clientStatusStubs;
     
-    public ClientService(string mainTmAddress)
+    public ClientService(string mainTmAddress, List<string> tmServers, List<string> lmServers)
     {
-        var channel = GrpcChannel.ForAddress(mainTmAddress);
-        _clientStub = new DadtkvClientService.DadtkvClientServiceClient(channel);
+        var txChannel = GrpcChannel.ForAddress(mainTmAddress);
+        _clientTxStub = new ClientTransactionService.ClientTransactionServiceClient(txChannel);
+        _clientStatusStubs = new List<ClientStatusService.ClientStatusServiceClient>();
+        foreach (var server in tmServers.Concat(lmServers).ToList())
+        {
+            var channel = GrpcChannel.ForAddress(server);
+            _clientStatusStubs.Add(new ClientStatusService.ClientStatusServiceClient(channel));
+        }
     }
 
-    public void TxSubmit(string clientId, List<string> objectsToRead, List<KeyValuePair<string, int>> objectsToWrite)
+    public async void TxSubmit(string clientId, List<string> objectsToRead, List<KeyValuePair<string, int>> objectsToWrite)
     {
         var request = new TransactionRequest
         {
@@ -37,7 +44,8 @@ public class ClientService
 
         request.ObjectsToWrite.AddRange(dadIntList);
         
-        var response = _clientStub.TxSubmit(request);
+        // TODO AWAIT RESPONSE
+        var response = await _clientTxStub.TxSubmitAsync(request);
 
         foreach (var dadInt in response.ObjectsRead)
         {
@@ -46,12 +54,13 @@ public class ClientService
         Console.WriteLine("Response: {0}", response);
     }
 
-    public void Status()
+    public async void Status()
     {
         var request = new StatusRequest();
-        
-        var reply = _clientStub.Status(request);
-        
-        Console.WriteLine("Status: {0}", reply.Status);
+        foreach (var stub in _clientStatusStubs)
+        {
+            var response = await stub.StatusAsync(request);
+            Console.WriteLine($"Status of {response.Nick}: {response.Status}");
+        }
     }
 }

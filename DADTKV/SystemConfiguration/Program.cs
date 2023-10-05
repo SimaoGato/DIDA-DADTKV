@@ -16,10 +16,11 @@ class Program
 
         var script = File.ReadAllLines(scriptPath);
         var config = ParseScript(script);
+        Console.WriteLine(Directory.GetCurrentDirectory());
 
         StartLeaseManagers(config.LeaseManagers, config.TransactionManagers, config.Clients, config.TimeSlots, config.SlotDuration, config.StartTime, config.SlotBehaviors);
         StartTransactionManagers(config.TransactionManagers, config.LeaseManagers, config.TimeSlots, config.SlotDuration, config.StartTime, config.SlotBehaviors);
-        StartClients(config.Clients, config.TransactionManagers, config.StartTime);
+        StartClients(config.Clients, config.TransactionManagers, config.LeaseManagers, config.StartTime);
     }
 
     static string GetScriptPath(string[] args)
@@ -51,7 +52,7 @@ class Program
                     break;
                 case "T":
                     DateTime currentDate = DateTime.Now;
-                    DateTime startTime = currentDate.AddSeconds(20);
+                    DateTime startTime = currentDate.AddSeconds(5);
                     config.StartTime = startTime;
                     break;
                 case "F":
@@ -120,17 +121,19 @@ class Program
         }
     }
 
-    static void StartClients(List<ProcessInfo> clients, List<ProcessInfo> transactionManagers, DateTime startTime)
+    static void StartClients(List<ProcessInfo> clients, List<ProcessInfo> transactionManagers, List<ProcessInfo> leaseManagers, DateTime startTime)
     {
         var tmArgs = GetProcessArgs(transactionManagers);
+        var lmArgs = GetProcessArgs(leaseManagers);
 
         for (int i = 0; i < clients.Count; i++)
         {
             var c = clients[i];
             var numCs = i;
             var numTMs = transactionManagers.Count;
+            var numLMs = leaseManagers.Count;
 
-            var arguments = $"{c.Key} {c.Value} {numCs} {numTMs} {tmArgs} {startTime:HH:mm:ss}";
+            var arguments = $"{c.Key} {c.Value} {numCs} {numTMs} {tmArgs} {numLMs} {lmArgs} {startTime:HH:mm:ss}";
 
             StartProcess("Client", arguments);
         }

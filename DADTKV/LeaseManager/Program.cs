@@ -8,6 +8,7 @@ class Program
     private LeaseManagerState _lmState;
     
     // TODO: Review these names
+    private string _lmNick;
     private string _lmUrl;
     private int _lmId;
     private int _numberOfLM;
@@ -33,6 +34,7 @@ class Program
     {
         _lmState = new LeaseManagerState();
         var lmLogic = new LeaseManagerLogic(args);
+        _lmNick = lmLogic.lmNick;
         _lmUrl = lmLogic.lmUrl;
         _lmId = lmLogic.lmId;
         _numberOfLM = lmLogic.numberOfLm;
@@ -59,6 +61,7 @@ class Program
             Services =
             {
                 LeaseService.BindService(new TransactionManagerServiceImpl(program._lmState)),
+                ClientStatusService.BindService(new ClientStatusServiceImpl(program._lmNick)),
                 PaxosService.BindService(program._acceptor)
             }, 
             Ports = { new ServerPort(lmUri.Host, lmUri.Port, ServerCredentials.Insecure) }

@@ -2,7 +2,7 @@
 
 namespace TransactionManager;
 
-public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
+public class ClientTxServiceImpl : ClientTransactionService.ClientTransactionServiceBase
 {
     private readonly object _dadIntMapLock = new object(); //TODO: Maybe change
     
@@ -10,7 +10,7 @@ public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
     private string _transactionManagerId;
     private TransactionManagerState _transactionManagerState;
     
-    public ClientServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, TransactionManagerState transactionManagerState)
+    public ClientTxServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, TransactionManagerState transactionManagerState)
     {
         _transactionManagerId = transactionManagerId;
         _transactionManagerService = transactionManagerService;
@@ -22,11 +22,6 @@ public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
         return Task.FromResult(DoTransaction(request));
     }
     
-    public override Task<StatusResponse> Status(StatusRequest request, ServerCallContext context)
-    {
-        return Task.FromResult(CheckStatus(request));
-    }
-
     private TransactionResponse DoTransaction(TransactionRequest request)
     {
         string clientId = request.ClientId;
@@ -77,11 +72,27 @@ public class ClientServiceImpl : DadtkvClientService.DadtkvClientServiceBase
 
         return response;
     }
-    
-    private static StatusResponse CheckStatus(StatusRequest request)
+}
+
+public class ClientStatusServiceImpl : ClientStatusService.ClientStatusServiceBase
+{
+    private string serverNick;
+    public ClientStatusServiceImpl(string nick)
     {
-        StatusResponse response = new StatusResponse();
-        response.Status = true;
+        serverNick = nick;
+    }
+    public override Task<StatusResponse> Status(StatusRequest request, ServerCallContext context)
+    {
+        return Task.FromResult(CheckStatus(request, serverNick));
+    }
+    
+    private static StatusResponse CheckStatus(StatusRequest request, string nick)
+    {
+        StatusResponse response = new StatusResponse
+        {
+            Nick = nick,
+            Status = true
+        };
         return response;
     }
 }

@@ -17,7 +17,7 @@ class Program {
     private static void Main(string[] args) 
     {
         Program program = new Program(args);
-        TimeSpan timeToStart = program.clientLogic.startTime - DateTime.Now;
+        TimeSpan timeToStart = program.clientLogic.StartTime - DateTime.Now;
         int msToWait = (int)timeToStart.TotalMilliseconds;
         Console.WriteLine($"Starting in {timeToStart} s");
         Timer slotTimer = new Timer(msToWait);
@@ -31,23 +31,19 @@ class Program {
     // TODO error handling
     {
         try {
-            string clientNick = clientLogic.clientNick;
-            string scriptPath = clientLogic.scriptPath;
-            int clientId = clientLogic.clientId;
-            int numberOfTm = clientLogic.numberOfTm;
-            List<string> tmServers = clientLogic.ParseTmServers();
-            string mainTmServer = tmServers[clientId % numberOfTm];
-
-            Console.WriteLine("clientId: " + clientId);
-            Console.WriteLine("mainTmServer: " + mainTmServer);
-            Console.WriteLine(Directory.GetCurrentDirectory());
-            Console.WriteLine("scriptPath: " + scriptPath);
-            Console.WriteLine("TmServers: ");
-            foreach (var tmServer in tmServers) {
-                Console.WriteLine(tmServer);
+            string clientNick = clientLogic.ClientNick;
+            string scriptPath = clientLogic.ScriptPath;
+            int numberOfTm = clientLogic.NumberOfTm;
+            clientLogic.PrintArgs();
+            if (numberOfTm == 0)
+            {
+                Console.WriteLine("Error: There is no available Transaction Manager Server");
+                Thread.Sleep(5000);
+                waitHandle.Set();
+                return;
             }
-
-            ClientService clientService = new ClientService(mainTmServer);
+            
+            ClientService clientService = new ClientService(clientLogic.MainTmServer, clientLogic.TmServers, clientLogic.LmServers);
 
             if (!File.Exists(scriptPath)) {
                 Console.WriteLine("The specified script file does not exist.");
@@ -77,7 +73,7 @@ class Program {
                         clientService.TxSubmit(clientNick, objectsToRead, objectsToWrite);
                         break;
                     case "S":
-                        //clientService.Status();
+                        clientService.Status();
                         break;
                     case "W":
                         Thread.Sleep(int.Parse(parts[1]));
@@ -95,7 +91,7 @@ class Program {
         }
         catch (Exception e) {
             Console.WriteLine(e);
-            Thread.Sleep(5000);
+            Thread.Sleep(10000);
             waitHandle.Set();
         }
     }

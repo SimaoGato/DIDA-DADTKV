@@ -64,7 +64,11 @@ class Program {
 
         Server server = new Server
         {
-            Services = { DadtkvClientService.BindService(new ClientServiceImpl(tmNick, transactionManagerService, tmState)) }, 
+            Services =
+            {
+                ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState)),
+                ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick))
+            }, 
             Ports = { new ServerPort(tmUri.Host, tmUri.Port, ServerCredentials.Insecure) }
         };
 

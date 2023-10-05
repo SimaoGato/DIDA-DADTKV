@@ -10,6 +10,7 @@
     <ItemGroup>
         <Protobuf Include="Protos\lease_service.proto" GrpcServices="Server" />
         <Protobuf Include="Protos\paxos.proto" GrpcServices="Both" />
+        <Protobuf Include="Protos\client_status_api.proto" GrpcServices="Server" />
     </ItemGroup>
 
     <ItemGroup>

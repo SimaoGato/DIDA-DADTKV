@@ -9,8 +9,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Protobuf Include="Protos\dadtkv_client_api.proto" GrpcServices="Server" />
         <Protobuf Include="Protos\lease_service.proto" GrpcServices="Client" />
+        <Protobuf Include="Protos\client_transaction_api.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\client_status_api.proto" GrpcServices="Server" />
     </ItemGroup>
 
     <ItemGroup>
