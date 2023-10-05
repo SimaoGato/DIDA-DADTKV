@@ -6,12 +6,24 @@ public class Proposer
 {
     private List<PaxosService.PaxosServiceClient> _stubs =
         new List<PaxosService.PaxosServiceClient>();
-    public int _IDp; 
+    private int _IDp; 
     private int _IDa = -1;
-    public List<List<string>> _value = new List<List<string>>();
+    private List<List<string>> _value = new List<List<string>>();
     private int _nServers;
     private Acceptor _acceptor;
-    private int timeout = 1;
+    private int _timeout = 1;
+
+    public List<List<string>> Value
+    {
+        get { return _value; }
+        set { _value = value; }
+    }
+    
+    public void PrepareForNextEpoch()
+    {
+        _IDa = -1;
+        _value.Clear();
+    }
   
     public Proposer(int iDp, int nServers,  List<string> addresses, Acceptor acceptor)
     {
@@ -47,7 +59,7 @@ public class Proposer
 
     public async void PhaseOne()
     {
-        Console.WriteLine("PHASE ONE 1 TIMEOUT: {0}", timeout);
+        Console.WriteLine("PHASE ONE 1 TIMEOUT: {0}", _timeout);
         // Want to propose a value, send prepare ID
         var prepare = new Prepare
         {
@@ -90,38 +102,39 @@ public class Proposer
                         auxLease.Add(list);
                     }
                     _value = auxLease; // Yes, update value
-                    Console.WriteLine("(Proposer):Value has changed: {0}", printLease());
+                    Console.WriteLine("(Proposer):Value has changed: {0}", PrintLease(_value));
                 }
             }
         }
         
-        Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, printLease());
+        Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, PrintLease(_value));
         
         // Did it receive promises from a majority?
         if (count > _nServers / 2)
         {
-            timeout = 1; 
-            Console.WriteLine("(Proposer):Paxos phase 2 with value: {0}", printLease());
+            _timeout = 1; 
+            Console.WriteLine("(Proposer):Paxos phase 2 with value: {0}", PrintLease(_value));
             PhaseTwo(); // Yes, go to phase 2
         }
         else
         {
-            // Timeout to avoid live lock
-            _IDp = _IDp + _nServers;
-            Console.WriteLine("(Proposer):Wait Timeout: {0}", timeout);
-            Thread.Sleep(timeout * 1000); 
-            timeout = timeout * 2;
-            
             // Retry again with higher ID 
-            Console.WriteLine("(Proposer):Retrying paxos with new ID: {0}", _IDp);
+            _IDp += _nServers;
+            
+            // Timeout to avoid live lock
+            Console.WriteLine("(Proposer):Wait Timeout: {0}", _timeout);
+            
+            Thread.Sleep(_timeout * 1000); 
+            _timeout *= 2;
+            Console.WriteLine("(Proposer):Retrying prepare with new ID: {0}", _IDp);
             PhaseOne();
         }
     }
 
     private async void PhaseTwo()
     {
-        Console.WriteLine("PHASE TWO 2 TIMEOUT: {0}", timeout);
-        Console.WriteLine("(Proposer):PhaseTwo Value: {0}", printLease());
+        Console.WriteLine("PHASE TWO 2 TIMEOUT: {0}", _timeout);
+        Console.WriteLine("(Proposer):PhaseTwo Value: {0}", PrintLease(_value));
         var accept = new Accept
         {
             IDp = _IDp,
@@ -143,7 +156,7 @@ public class Proposer
                                                           
         foreach (var task in sendTasks)
         {
-            Console.WriteLine("(Proposer):Value to be accepted: {0}", printLease());
+            Console.WriteLine("(Proposer):Value to be accepted: {0}", PrintLease(_value));
             task.Start(); 
         }
                                                                   
@@ -164,14 +177,14 @@ public class Proposer
         
         if (count > _nServers / 2)
         {
-            Console.WriteLine("(Proposer):FINISH PAXOS WITH VALUE: {0} (my id: {1})", printLease(), _IDp); 
+            Console.WriteLine("(Proposer):FINISH PAXOS WITH VALUE: {0} (my id: {1})", PrintLease(_value), _IDp); 
         } 
     }
 
-    private string printLease()
+    private string PrintLease(List<List<string>> value)
     {
         string result = "";
-        foreach (var lease in _value)
+        foreach (var lease in value)
         {
             string leaseAux = "";
             foreach (var str in lease)

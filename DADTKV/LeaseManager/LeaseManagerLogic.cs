@@ -30,7 +30,7 @@
             slotBehavior = ParseSlotBehavior();
             startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
             
-            //PrintArgs();
+            PrintArgs();
         }
         
         public List<string> ParseTmServers() {

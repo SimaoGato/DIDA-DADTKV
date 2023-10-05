@@ -5,14 +5,21 @@ namespace LeaseManager.Paxos;
 public class Acceptor : PaxosService.PaxosServiceBase
 {
     private int _leaderID = -1; 
-    public int _IDp = -1;
-    public int _IDa = -1;
-    public List<List<string>> _value = new List<List<string>>();
+    private int _IDp = -1;
+    private int _IDa = -1;
+    private List<List<string>> _value = new List<List<string>>();
 
     public int LeaderID
     {
         get { return _leaderID;  }
         set { _leaderID = value;}
+    }
+    
+    public void PrepareForNextEpoch()
+    {
+        _IDp = -1;
+        _IDa = -1;
+        _value.Clear();
     }
     
     public override Task<Promise> PaxosPhaseOne(Prepare prepare, ServerCallContext context)
@@ -46,7 +53,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
             }
             else // Yes
             {
-                Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} AValue: {1}", _IDa, printLease());
+                Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} Value: {1}", _IDa, PrintLease(_value));
             }
             // TODO: _IDa Should change to -1 every new epoch
             promise.IDp = _IDp;
@@ -95,16 +102,16 @@ public class Acceptor : PaxosService.PaxosServiceBase
             }
             
             _leaderID = _IDp;
-            Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", printLease(), _IDp);
+            Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", PrintLease(_value), _IDp);
         }
         
         return accepted;
     }
     
-    private string printLease()
+    private string PrintLease(List<List<string>> value)
     {
         string result = "";
-        foreach (var lease in _value)
+        foreach (var lease in value)
         {
             string leaseAux = "";
             foreach (var str in lease)
@@ -113,7 +120,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
             }
             result = result + leaseAux + " | ";
         }
-
+    
         return result;
     }
 }

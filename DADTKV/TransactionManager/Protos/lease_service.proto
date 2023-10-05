@@ -5,8 +5,7 @@ service LeaseService {
 }
 
 message LeaseRequest {
-  string transactionManagerId = 1;
-  repeated string objectsRequested = 2;
+  repeated string value = 1;
 }
 
 message LeaseResponse {

@@ -1,23 +1,73 @@
 ﻿using Grpc.Core;
 using LeaseManager;
+using LeaseManager.Paxos;
 using Timer = System.Timers.Timer;
 
 class Program
 {
-    // TODO: Save leaseManagers adresses in a dictionary
-    // TODO: receive from args the list of nicks and addresses (the first one should be this lease manager)
-
-    private LeaseManagerLogic lmLogic;
-    static ManualResetEvent waitHandle = new ManualResetEvent(false);
+    private LeaseManagerState _lmState;
     
-    private Program(string[] args) 
+    // TODO: Review these names
+    private string _lmUrl;
+    private int _lmId;
+    private int _numberOfLM;
+    private List<string> _lmServers;
+    private int _numberOfTm;
+    private List<string> tmServers;
+    private int timeSlots;
+    private int slotDuration;
+    private int slotBehaviorCount;
+    private List<KeyValuePair<string, string>> slotBehavior;
+    private DateTime startTime;
+    
+    private Server server;
+    private Proposer _proposer;
+    private Acceptor _acceptor;
+    
+    static ManualResetEvent waitHandle = new ManualResetEvent(false);
+
+
+    private List<List<string>> value;
+    
+    private Program(string[] args)
     {
-        lmLogic = new LeaseManagerLogic(args);
+        _lmState = new LeaseManagerState();
+        var lmLogic = new LeaseManagerLogic(args);
+        _lmUrl = lmLogic.lmUrl;
+        _lmId = lmLogic.lmId;
+        _numberOfLM = lmLogic.numberOfLm;
+        _lmServers = lmLogic.ParseLmServers();
+        _numberOfTm = lmLogic.numberOfTm;
+        tmServers = lmLogic.ParseTmServers();
+        slotBehavior = lmLogic.ParseSlotBehavior();
+        timeSlots = lmLogic.timeSlots;
+        slotDuration = lmLogic.slotDuration;
+        startTime = lmLogic.startTime;
     }
     
     public static void Main(string[] args) {
         Program program = new Program(args);
-        TimeSpan timeToStart = program.lmLogic.startTime - DateTime.Now;
+        
+        Uri lmUri = new Uri(program._lmUrl);
+        Console.WriteLine(lmUri.Host + "-" + lmUri.Port);
+        
+        program._acceptor = new Acceptor();
+        program._proposer = new Proposer(program._lmId, program._numberOfLM, program._lmServers, program._acceptor);
+
+        program.server = new Server
+        {
+            Services =
+            {
+                LeaseService.BindService(new TransactionManagerServiceImpl(program._lmState)),
+                PaxosService.BindService(program._acceptor)
+            }, 
+            Ports = { new ServerPort(lmUri.Host, lmUri.Port, ServerCredentials.Insecure) }
+        };
+        
+        program.server.Start();
+        Console.WriteLine("Starting Lease Manager on port: {0}", lmUri.Port);
+        
+        TimeSpan timeToStart = program.startTime - DateTime.Now;
         int msToWait = (int)timeToStart.TotalMilliseconds;
         Console.WriteLine($"Starting in {timeToStart} s");
         Timer slotTimer = new Timer(msToWait);
@@ -28,67 +78,49 @@ class Program
     }
 
     private void StartProgram() {
-        string lmNick = lmLogic.lmNick;
-        string lmUrl = lmLogic.lmUrl;
-        List<string> lmServers = lmLogic.ParseLmServers();
-        List<string> tmServers = lmLogic.ParseTmServers();
-        var slotBehavior = lmLogic.ParseSlotBehavior();
-        var timeSlots = lmLogic.timeSlots;
-        var slotDuration = lmLogic.slotDuration;
         
-        Console.WriteLine("tmNick: " + lmNick);
-        Console.WriteLine("tmUrl: " + lmUrl);
-        Console.WriteLine("LmServers: ");
-        foreach (var lmServer in lmServers)
-        {
-            Console.WriteLine(lmServer);
-        }
-        Console.WriteLine("TmServers: ");
-        foreach (var tmServer in tmServers)
-        {
-            Console.WriteLine(tmServer);
-        }
-        Console.WriteLine("slotBehavior: ");
-        foreach (var slot in slotBehavior)
-        {
-            Console.WriteLine(slot.Key + "-" + slot.Value);
-        }
-        Console.WriteLine("timeSlots: " + timeSlots);
-        Console.WriteLine("slotDuration: " + slotDuration);
-        Console.WriteLine("----------");
-        
-        Uri lmUri = new Uri(lmUrl);
-        Console.WriteLine(lmUri.Host + "-" + lmUri.Port);
-
-        Server server = new Server
-        {
-            Services = { LeaseService.BindService(new TransactionManagerServiceImpl()) }, 
-            Ports = { new ServerPort(lmUri.Host, lmUri.Port, ServerCredentials.Insecure) }
-        };
-
-        server.Start();
-
         // TODO see if it has to be synchronized
         int counter = 0;
         Timer slotTimer = new Timer(slotDuration);
         slotTimer.Elapsed += (sender, e) =>
         {
-            foo(); // TODO change to paxos func
+            _proposer.PrepareForNextEpoch();
+            _acceptor.PrepareForNextEpoch();
+            Paxos();
             counter++;
             if (counter >= timeSlots) slotTimer.Stop();
         };
         slotTimer.AutoReset = true;
         slotTimer.Start();
-        
-        Console.WriteLine("Starting Lease Manager on port: {0}", lmUri.Port);
+
         Console.WriteLine("Press any key to stop...");
         Console.ReadKey();
-
         server.ShutdownAsync().Wait();
         waitHandle.Set();
     }
 
-    static void foo() {
-        Console.WriteLine("ran function");
+    private void Paxos()
+    {
+        //_proposer.Value = _lmState.RequestedLeases;
+        _proposer.Value.AddRange(_lmState.RequestedLeases);
+        Console.WriteLine("------ STARTING MULTI-PAXOS ------");
+        _proposer.StartPaxos();
+        _lmState.CleanRequestedLeases();
+    }
+    
+    private string PrintLease(List<List<string>> value)
+    {
+        string result = "";
+        foreach (var lease in value)
+        {
+            string leaseAux = "";
+            foreach (var str in lease)
+            {
+                leaseAux = leaseAux + " " + str;
+            }
+            result = result + leaseAux + " | ";
+        }
+    
+        return result;
     }
 }

@@ -4,7 +4,12 @@ namespace LeaseManager;
 
 public class TransactionManagerServiceImpl : LeaseService.LeaseServiceBase
 {
-    List<List<string>> _requestedLeases = new List<List<string>>();
+    private LeaseManagerState _lmState;
+    
+    public TransactionManagerServiceImpl(LeaseManagerState lmState)
+    {
+        _lmState = lmState;
+    }
     
     public override Task<LeaseResponse> RequestLease(LeaseRequest request, ServerCallContext context)
     {
@@ -13,14 +18,8 @@ public class TransactionManagerServiceImpl : LeaseService.LeaseServiceBase
     
     private LeaseResponse DoLeaseRequest(LeaseRequest request)
     {
-        List<string> leaseRequested = new List<string>();
-        
-        string transactionManagerId = request.TransactionManagerId;
-        
-        leaseRequested.Add(transactionManagerId);
-        leaseRequested.AddRange(request.ObjectsRequested);
-        
-        _requestedLeases.Add(leaseRequested);
+        List<string> leaseRequested = request.Value.ToList();
+        _lmState.AddLease(leaseRequested);
         
         //print out the requested lease
         Console.WriteLine("Lease Requested: {0}", string.Join(", ", leaseRequested));
