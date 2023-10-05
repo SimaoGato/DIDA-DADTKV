@@ -8,9 +8,7 @@ public class Proposer
         new List<PaxosService.PaxosServiceClient>();
     public int _IDp; 
     private int _IDa = -1;
-    public int _value; // TODO: Change to buffer for the leaseRequests
-    // Keep in mind that this value might be updated ny an accept response
-    // TODO: Maybe add new property of accepted value (?)
+    public List<List<string>> _value = new List<List<string>>();
     private int _nServers;
     private Acceptor _acceptor;
     private int timeout = 1;
@@ -85,19 +83,25 @@ public class Proposer
                 // It needs to update the _value with the Highest IDa (PreviousAcceptedID) that it got
                 if (promise.IDa != -1 && (promise.IDa > _IDa)) 
                 {
-                    _value = promise.Value; // Yes, update value
-                    Console.WriteLine("(Proposer):Value has changed: {0}", _value);
+                    List<List<string>> auxLease = new List<List<string>>();
+                    foreach (Lease lease in promise.Value)
+                    {
+                        List<string> list = new List<string>(lease.Value);
+                        auxLease.Add(list);
+                    }
+                    _value = auxLease; // Yes, update value
+                    Console.WriteLine("(Proposer):Value has changed: {0}", printLease());
                 }
             }
         }
         
-        Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, _value);
+        Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, printLease());
         
         // Did it receive promises from a majority?
         if (count > _nServers / 2)
         {
             timeout = 1; 
-            Console.WriteLine("(Proposer):Paxos phase 2 with value: {0}", _value);
+            Console.WriteLine("(Proposer):Paxos phase 2 with value: {0}", printLease());
             PhaseTwo(); // Yes, go to phase 2
         }
         else
@@ -117,12 +121,18 @@ public class Proposer
     private async void PhaseTwo()
     {
         Console.WriteLine("PHASE TWO 2 TIMEOUT: {0}", timeout);
-        Console.WriteLine("(Proposer):PhaseTwo Value: {0}", _value);
+        Console.WriteLine("(Proposer):PhaseTwo Value: {0}", printLease());
         var accept = new Accept
         {
             IDp = _IDp,
-            Value = _value
         };
+
+        foreach (var leaseAux in _value)
+        {
+            Lease lease = new Lease();
+            lease.Value.AddRange(leaseAux);
+            accept.Value.Add(lease);
+        }
         
         List<Task<Accepted>> sendTasks = new List<Task<Accepted>>();
         sendTasks.Add(new Task<Accepted>(() => _acceptor.DoPhaseTwo(accept))); 
@@ -133,7 +143,7 @@ public class Proposer
                                                           
         foreach (var task in sendTasks)
         {
-            Console.WriteLine("(Proposer):Value to be accepted: {0}", _value);
+            Console.WriteLine("(Proposer):Value to be accepted: {0}", printLease());
             task.Start(); 
         }
                                                                   
@@ -154,7 +164,23 @@ public class Proposer
         
         if (count > _nServers / 2)
         {
-            Console.WriteLine("(Proposer):FINISH PAXOS WITH VALUE: {0} (my id: {1})", _value, _IDp); 
+            Console.WriteLine("(Proposer):FINISH PAXOS WITH VALUE: {0} (my id: {1})", printLease(), _IDp); 
         } 
+    }
+
+    private string printLease()
+    {
+        string result = "";
+        foreach (var lease in _value)
+        {
+            string leaseAux = "";
+            foreach (var str in lease)
+            {
+                leaseAux = leaseAux + " " + str;
+            }
+            result = result + leaseAux + " | ";
+        }
+
+        return result;
     }
 }

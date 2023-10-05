@@ -7,7 +7,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
     private int _leaderID = -1; 
     public int _IDp = -1;
     public int _IDa = -1;
-    public int _value = -1;
+    public List<List<string>> _value = new List<List<string>>();
 
     public int LeaderID
     {
@@ -46,13 +46,19 @@ public class Acceptor : PaxosService.PaxosServiceBase
             }
             else // Yes
             {
-                Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} AValue: {1}", _IDa, _value);
+                Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} AValue: {1}", _IDa, printLease());
             }
             // TODO: _IDa Should change to -1 every new epoch
             promise.IDp = _IDp;
         }
         promise.IDa = _IDa;
-        promise.Value = _value;
+        foreach (var leaseAux in _value)
+        {
+            Lease lease = new Lease();
+            lease.Value.AddRange(leaseAux);
+            promise.Value.Add(lease);
+        }
+        
         Console.WriteLine("(Acceptor):Paxos promise {0} to IDp:{1}", promise.IDp, prepare.IDp);
         return promise;
     }
@@ -71,13 +77,43 @@ public class Acceptor : PaxosService.PaxosServiceBase
         {
             _IDp = accept.IDp;
             _IDa = _IDp;
-            _value = accept.Value;
+            
+            List<List<string>> auxLease = new List<List<string>>();
+            foreach (Lease lease in accept.Value)
+            {
+                List<string> list = new List<string>(lease.Value);
+                auxLease.Add(list);
+            }
+            _value = auxLease;
+            
             accepted.IDp = _IDp;
-            accepted.Value = _value;
+            foreach (var leaseAux in _value)
+            {
+                Lease lease = new Lease();
+                lease.Value.AddRange(leaseAux);
+                accepted.Value.Add(lease);
+            }
+            
             _leaderID = _IDp;
-            Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", _value, _IDp);
+            Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", printLease(), _IDp);
         }
         
         return accepted;
+    }
+    
+    private string printLease()
+    {
+        string result = "";
+        foreach (var lease in _value)
+        {
+            string leaseAux = "";
+            foreach (var str in lease)
+            {
+                leaseAux = leaseAux + " " + str;
+            }
+            result = result + leaseAux + " | ";
+        }
+
+        return result;
     }
 }
