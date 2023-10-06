@@ -5,6 +5,7 @@ namespace TransactionManager;
 public class TransactionManagerService
 {
     
+    private readonly List<GrpcChannel> _leaseManagersGrpcChannels = new List<GrpcChannel>();
     private List<LeaseService.LeaseServiceClient> _leaseManagersStubs = new List<LeaseService.LeaseServiceClient>();
     
     public TransactionManagerService(List<string> lmAddresses)
@@ -12,7 +13,16 @@ public class TransactionManagerService
         foreach (var lmAddress in lmAddresses)
         {
             var channel = GrpcChannel.ForAddress(lmAddress);
+            _leaseManagersGrpcChannels.Add(channel);
             _leaseManagersStubs.Add(new LeaseService.LeaseServiceClient(channel));
+        }
+    }
+    
+    public void CloseLeaseManagerStubs()
+    {
+        foreach (var ch in _leaseManagersGrpcChannels)
+        {
+            ch.ShutdownAsync().Wait();
         }
     }
 

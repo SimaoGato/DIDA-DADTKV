@@ -48,6 +48,8 @@ class Program
         Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
         Console.WriteLine("Press any key to stop...");
         Console.ReadKey();
+        
+        transactionManagerService.CloseLeaseManagerStubs();
 
         server.ShutdownAsync().Wait();
         WaitHandle.Set();
