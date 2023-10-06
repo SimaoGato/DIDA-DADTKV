@@ -23,10 +23,6 @@ public class TransactionManagerService
             Value = { transactionManagerId, objectsRequested }
         };
         
-        //request.Value.Add(transactionManagerId);
-        //request.Value.AddRange(objectsRequested);
-        
-        // TODO probably need to change this logic to use threads
         foreach (var lmStub in _leaseManagersStubs)
         {
             var response = lmStub.RequestLease(request);

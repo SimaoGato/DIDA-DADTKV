@@ -1,86 +1,89 @@
 ﻿using Grpc.Core;
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using TransactionManager;
 using Timer = System.Timers.Timer;
 
-class Program {
+class Program
+{
+    private readonly TransactionManagerConfiguration _tmConfiguration;
+    private static readonly ManualResetEvent WaitHandle = new ManualResetEvent(false);
 
-    private TransactionManagerLogic tmLogic;
-    static ManualResetEvent waitHandle = new ManualResetEvent(false);
-    
-    private Program(string[] args) 
+    private Program(string[] args)
     {
-        tmLogic = new TransactionManagerLogic(args);
-    }
-    
-    public static void Main(string[] args) {
-        Program program = new Program(args);
-        TimeSpan timeToStart = program.tmLogic.startTime - DateTime.Now;
-        int msToWait = (int)timeToStart.TotalMilliseconds;
-        Console.WriteLine($"Starting in {timeToStart} s");
-        Timer slotTimer = new Timer(msToWait);
-        slotTimer.Elapsed += (_, _) => program.StartProgram();
-        slotTimer.AutoReset = false;
-        slotTimer.Start();
-        waitHandle.WaitOne();
+        _tmConfiguration = new TransactionManagerConfiguration(args);
     }
 
-    private void StartProgram() {
-        
-        string tmNick = tmLogic.tmNick;
-        string tmUrl = tmLogic.tmUrl;
-        List<string> tmServers = tmLogic.ParseTmServers();
-        List<string> lmServers = tmLogic.ParseLmServers();
-        var slotBehavior = tmLogic.ParseSlotBehavior();
-        var timeSlots = tmLogic.timeSlots;
-        var slotDuration = tmLogic.slotDuration;
-        
+    public static void Main(string[] args)
+    {
+        Program program = new Program(args);
+        program.StartProgram();
+        WaitHandle.WaitOne();
+    }
+
+    private void StartProgram()
+    {
+        string tmNick = _tmConfiguration.TmNick;
+        string tmUrl = _tmConfiguration.TmUrl;
+        List<string> tmServers = _tmConfiguration.ParseTmServers();
+        List<string> lmServers = _tmConfiguration.ParseLmServers();
+        var slotBehavior = _tmConfiguration.ParseSlotBehavior();
+        var timeSlots = _tmConfiguration.TimeSlots;
+        var slotDuration = _tmConfiguration.SlotDuration;
+
         TransactionManagerState tmState = new TransactionManagerState();
         
-        Console.WriteLine("tmNick: " + tmNick);
-        Console.WriteLine("tmUrl: " + tmUrl);
-        Console.WriteLine("TmServers: ");
-        foreach (var tmServer in tmServers)
-        {
-            Console.WriteLine(tmServer);
-        }
-        Console.WriteLine("LmServers: ");
-        foreach (var lmServer in lmServers)
-        {
-            Console.WriteLine(lmServer);
-        }
-        Console.WriteLine("slotBehavior: ");
-        foreach (var slot in slotBehavior)
-        {
-            Console.WriteLine(slot.Key + "-" + slot.Value);
-        }
-        Console.WriteLine("timeSlots: " + timeSlots);
-        Console.WriteLine("slotDuration: " + slotDuration);
-        Console.WriteLine("----------");
-        
+        PrintConfigurationDetails(tmNick, tmUrl, tmServers, lmServers, slotBehavior, timeSlots, slotDuration);
+
         Uri tmUri = new Uri(tmUrl);
-        Console.WriteLine(tmUri.Host + "-" + tmUri.Port);
+        Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
         
-        // TODO add this logic to another class
         var transactionManagerService = new TransactionManagerService(lmServers);
 
-        Server server = new Server
+        Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, tmUri.Port, lmServers.Count);
+
+        server.Start();
+
+        Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
+        Console.WriteLine("Press any key to stop...");
+        Console.ReadKey();
+
+        server.ShutdownAsync().Wait();
+        WaitHandle.Set();
+    }
+    
+    private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService, 
+        TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm)
+    {
+        return new Server
         {
             Services =
             {
                 ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState)),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
-                LeaseResponseService.BindService(new LeaseManagerServiceImpl(tmState, lmServers.Count))
-            }, 
-            Ports = { new ServerPort(tmUri.Host, tmUri.Port, ServerCredentials.Insecure) }
+                LeaseResponseService.BindService(new LeaseManagerServiceImpl(tmState, numberOfLm))
+            },
+            Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
-
-        server.Start();
-
-        Console.WriteLine("Starting Transaction Manager on port: {0}", tmUri.Port);
-        Console.WriteLine("Press any key to stop...");
-        Console.ReadKey();
-
-        server.ShutdownAsync().Wait();
-        waitHandle.Set();
+    }
+    
+    private static void PrintConfigurationDetails(string tmNick, string tmUrl, List<string> tmServers, List<string> lmServers, 
+        List<KeyValuePair<string, string>> slotBehavior, int timeSlots, int slotDuration)
+    {
+        Console.WriteLine("tmNick: " + tmNick);
+        Console.WriteLine("tmUrl: " + tmUrl);
+        Console.WriteLine("TmServers: ");
+        Console.WriteLine(string.Join(Environment.NewLine, tmServers));
+        Console.WriteLine("LmServers: ");
+        Console.WriteLine(string.Join(Environment.NewLine, lmServers));
+        Console.WriteLine("slotBehavior: ");
+        foreach (var slot in slotBehavior)
+        {
+            Console.WriteLine($"{slot.Key}-{slot.Value}");
+        }
+        Console.WriteLine("timeSlots: " + timeSlots);
+        Console.WriteLine("slotDuration: " + slotDuration);
+        Console.WriteLine("----------");
     }
 }
