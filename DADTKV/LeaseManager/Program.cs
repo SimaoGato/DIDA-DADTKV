@@ -24,6 +24,7 @@ class Program
     private Server server;
     private Proposer _proposer;
     private Acceptor _acceptor;
+    private LeaseManagerService _leaseManagerService;
     
     static ManualResetEvent waitHandle = new ManualResetEvent(false);
 
@@ -53,9 +54,10 @@ class Program
         Uri lmUri = new Uri(program._lmUrl);
         Console.WriteLine(lmUri.Host + "-" + lmUri.Port);
         
-        program._acceptor = new Acceptor();
+        program._leaseManagerService = new LeaseManagerService(program.tmServers);
+        program._acceptor = new Acceptor(program._leaseManagerService);
         program._proposer = new Proposer(program._lmId, program._numberOfLM, program._lmServers, program._acceptor);
-
+        
         program.server = new Server
         {
             Services =

@@ -8,11 +8,23 @@ public class Acceptor : PaxosService.PaxosServiceBase
     private int _IDp = -1;
     private int _IDa = -1;
     private List<List<string>> _value = new List<List<string>>();
+    private LeaseManagerService _leaseManagerService;
+    
+    public Acceptor(LeaseManagerService leaseManagerService)
+    {
+        _leaseManagerService = leaseManagerService;
+    }
 
     public int LeaderID
     {
         get { return _leaderID;  }
         set { _leaderID = value;}
+    }
+    
+    public List<List<string>> Value
+    {
+        get { return _value;  }
+        set { _value = value;}
     }
     
     public void PrepareForNextEpoch()
@@ -103,6 +115,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
             
             _leaderID = _IDp;
             Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", PrintLease(_value), _IDp);
+            _leaseManagerService.SendLeases(_value);
         }
         
         return accepted;

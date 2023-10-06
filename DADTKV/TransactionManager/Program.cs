@@ -25,7 +25,6 @@ class Program {
     }
 
     private void StartProgram() {
-        TransactionManagerState tmState = new TransactionManagerState();
         
         string tmNick = tmLogic.tmNick;
         string tmUrl = tmLogic.tmUrl;
@@ -34,6 +33,8 @@ class Program {
         var slotBehavior = tmLogic.ParseSlotBehavior();
         var timeSlots = tmLogic.timeSlots;
         var slotDuration = tmLogic.slotDuration;
+        
+        TransactionManagerState tmState = new TransactionManagerState();
         
         Console.WriteLine("tmNick: " + tmNick);
         Console.WriteLine("tmUrl: " + tmUrl);
@@ -67,7 +68,8 @@ class Program {
             Services =
             {
                 ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState)),
-                ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick))
+                ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
+                LeaseResponseService.BindService(new LeaseManagerServiceImpl(tmState, lmServers.Count))
             }, 
             Ports = { new ServerPort(tmUri.Host, tmUri.Port, ServerCredentials.Insecure) }
         };
