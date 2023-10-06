@@ -1,0 +1,17 @@
+﻿syntax = "proto3";
+
+service LeaseResponseService {
+  rpc SendLeases(SendLeaseRequest) returns (SendLeaseResponse);
+}
+
+message SendLeaseRequest {
+  repeated LeaseOrder leases = 1;
+}
+
+message SendLeaseResponse {
+  bool ack = 1;
+}
+
+message LeaseOrder {
+  repeated string value = 1;
+}
