@@ -1,4 +1,5 @@
-﻿using Grpc.Net.Client;
+﻿using Grpc.Core;
+using Grpc.Net.Client;
 
 namespace Client;
 
@@ -59,8 +60,17 @@ public class ClientService
         var request = new StatusRequest();
         foreach (var stub in _clientStatusStubs)
         {
-            var response = await stub.StatusAsync(request);
-            Console.WriteLine($"Status of {response.Nick}: {response.Status}");
+            try
+            {
+                var response = await stub.StatusAsync(request, deadline: DateTime.UtcNow.AddSeconds(5));
+                Console.WriteLine($"Status of {response.Nick}: {response.Status}");
+            }
+            catch (RpcException ex)
+            {
+                //TODO get name of server that is unavailable
+                Console.WriteLine("server unavailable");
+                Thread.Sleep(0);
+            }
         }
     }
 }
