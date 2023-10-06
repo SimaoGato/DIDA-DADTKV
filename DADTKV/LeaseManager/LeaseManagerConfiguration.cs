@@ -1,5 +1,5 @@
 ﻿namespace LeaseManager {
-    public class LeaseManagerLogic {
+    public class LeaseManagerConfiguration {
         private string[] _args;
         public string lmNick;
         public string lmUrl;
@@ -14,7 +14,7 @@
         public List<KeyValuePair<string, string>> slotBehavior;
         public DateTime startTime;
 
-        public LeaseManagerLogic(string[] args) {
+        public LeaseManagerConfiguration(string[] args) {
             _args = args;
             lmNick = args[0];
             lmUrl = args[1];

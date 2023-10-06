@@ -46,14 +46,14 @@ public class Acceptor : PaxosService.PaxosServiceBase
 
     public Promise DoPhaseOne(Prepare prepare)
     {
-        Console.WriteLine("(Acceptor):Paxos prepare received with IDp: {0}", prepare.IDp);
+        //Console.WriteLine("(Acceptor):Paxos prepare received with IDp: {0}", prepare.IDp);
         Promise promise = new Promise();
         
         // Did it promise to ignore requests with this ID?
         if (prepare.IDp < _IDp)
         {
             promise.IDp = -1; // Ignore request
-            Console.WriteLine("(Acceptor):IGNORE, Prev Accepted ID: {0}", _IDp);
+            //Console.WriteLine("(Acceptor):IGNORE, Prev Accepted ID: {0}", _IDp);
         }
         else // Will promise to ignore request with lower Id
         {
@@ -61,13 +61,12 @@ public class Acceptor : PaxosService.PaxosServiceBase
             // Has it ever accepted anything?
             if (_IDa == -1) // No
             {
-                Console.WriteLine("(Acceptor):Didn't accepted anything");
+                //Console.WriteLine("(Acceptor):Didn't accepted anything");
             }
             else // Yes
             {
-                Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} Value: {1}", _IDa, PrintLease(_value));
+                //Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} Value: {1}", _IDa, PrintLease(_value));
             }
-            // TODO: _IDa Should change to -1 every new epoch
             promise.IDp = _IDp;
         }
         promise.IDa = _IDa;
@@ -78,19 +77,19 @@ public class Acceptor : PaxosService.PaxosServiceBase
             promise.Value.Add(lease);
         }
         
-        Console.WriteLine("(Acceptor):Paxos promise {0} to IDp:{1}", promise.IDp, prepare.IDp);
+        //Console.WriteLine("(Acceptor):Paxos promise {0} to IDp:{1}", promise.IDp, prepare.IDp);
         return promise;
     }
     
     public Accepted DoPhaseTwo(Accept accept)
     {
-        Console.WriteLine("(Acceptor):Paxos accept received with IDp: {0}", accept.IDp);
+        //Console.WriteLine("(Acceptor):Paxos accept received with IDp: {0}", accept.IDp);
         Accepted accepted = new Accepted();
         // Did it promise to ignore requests with this ID?
         if (accept.IDp < _IDp)
         {
             accepted.IDp = -1; // Ignore request
-            Console.WriteLine("Ignore request of IDp: {0}", accept.IDp);
+            //Console.WriteLine("Ignore request of IDp: {0}", accept.IDp);
         }
         else // Reply with accept Id and value 
         {
