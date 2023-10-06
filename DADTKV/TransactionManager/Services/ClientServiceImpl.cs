@@ -92,7 +92,6 @@ namespace TransactionManager
         {
             return Task.FromResult(new StatusResponse
             {
-                Nick = _serverNick,
                 Status = true
             });
         }
