@@ -22,7 +22,7 @@ class Program
     private Server _server;
     private Proposer _proposer;
     private Acceptor _acceptor;
-    private LeaseManagerService _leaseManagerService;
+    private LeaseManagerService _lmService;
     
     private Program(string[] args)
     {
@@ -38,8 +38,8 @@ class Program
         _timeSlots = lmLogic.timeSlots;
         _slotDuration = lmLogic.slotDuration;
         _startTime = lmLogic.startTime;
-        _leaseManagerService = new LeaseManagerService(_tmServers);
-        _acceptor = new Acceptor(_leaseManagerService);
+        _lmService = new LeaseManagerService(_tmServers);
+        _acceptor = new Acceptor(_lmService);
         _proposer = new Proposer(_lmId, _numberOfLm, _lmServers, _acceptor);
         
         var lmUri = new Uri(_lmUrl);
@@ -89,6 +89,8 @@ class Program
 
         Console.WriteLine("Press any key to stop...");
         Console.ReadKey();
+        _lmService.CloseStubs();
+        _proposer.CloseStubs();
         _server.ShutdownAsync().Wait();
         _waitHandle.Set();
     }
