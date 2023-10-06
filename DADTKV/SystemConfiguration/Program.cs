@@ -52,7 +52,7 @@ class Program
                     break;
                 case "T":
                     DateTime currentDate = DateTime.Now;
-                    DateTime startTime = currentDate.AddSeconds(10);
+                    DateTime startTime = currentDate.AddSeconds(20);
                     config.StartTime = startTime;
                     break;
                 case "F":

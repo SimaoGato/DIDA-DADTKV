@@ -1,5 +1,5 @@
 ﻿T ("a","b") (<"c",10>,<"d",20>)
 
-W 12000
+W 15000
 
-#T ("google","microsoft") (<"valley",10>,<"netflix",20>)
+T ("google","microsoft") (<"valley",10>,<"netflix",20>)

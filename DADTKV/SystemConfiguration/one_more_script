@@ -1,5 +1,5 @@
 ﻿T ("e","r") (<"g",10>,<"f",20>)
 
-W 12000
+W 15000
 
-#T ("name","linux") (<"windows",10>,<"ios",20>)
+T ("name","linux") (<"windows",10>,<"ios",20>)
