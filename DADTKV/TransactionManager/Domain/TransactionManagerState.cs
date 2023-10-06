@@ -10,28 +10,59 @@ namespace TransactionManager
 
         public void WriteOperation(string key, long value)
         {
-            _dataStorage[key] = value;
+            try
+            {
+                _dataStorage[key] = value;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error writing data for key '{key}': {ex.Message}");
+            }
         }
 
         public long ReadOperation(string key)
         {
-            if (_dataStorage.TryGetValue(key, out var value))
+            try
             {
-                return value;
+                if (_dataStorage.TryGetValue(key, out var value))
+                {
+                    return value;
+                }
+                throw new KeyNotFoundException($"Key '{key}' not found in data storage.");
             }
-            throw new KeyNotFoundException($"Key '{key}' not found in data storage.");
+            catch (KeyNotFoundException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error reading data for key '{key}': {ex.Message}");
+            }
         }
-
 
         public bool ContainsKey(string key)
         {
-            return _dataStorage.ContainsKey(key);
+            try
+            {
+                return _dataStorage.ContainsKey(key);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error checking if key '{key}' exists: {ex.Message}");
+            }
         }
 
         public void ReceiveLeases(List<List<string>> leases)
         {
-            _leasesPerLeaseManager.Add(leases);
-            // TODO: Implement lease order consensus check
+            try
+            {
+                _leasesPerLeaseManager.Add(leases);
+                // TODO: Implement lease order consensus check
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error receiving leases: {ex.Message}");
+            }
         }
     }
 }

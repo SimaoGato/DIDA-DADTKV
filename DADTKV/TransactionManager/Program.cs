@@ -17,45 +17,59 @@ class Program
 
     public static void Main(string[] args)
     {
-        Program program = new Program(args);
-        program.StartProgram();
-        WaitHandle.WaitOne();
+        try
+        {
+            Program program = new Program(args);
+            program.StartProgram();
+            WaitHandle.WaitOne();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
     }
 
     private void StartProgram()
     {
-        string tmNick = _tmConfiguration.TmNick;
-        string tmUrl = _tmConfiguration.TmUrl;
-        List<string> tmServers = _tmConfiguration.ParseTmServers();
-        List<string> lmServers = _tmConfiguration.ParseLmServers();
-        var slotBehavior = _tmConfiguration.ParseSlotBehavior();
-        var timeSlots = _tmConfiguration.TimeSlots;
-        var slotDuration = _tmConfiguration.SlotDuration;
+        try
+        {
+            string tmNick = _tmConfiguration.TmNick;
+            string tmUrl = _tmConfiguration.TmUrl;
+            List<string> tmServers = _tmConfiguration.ParseTmServers();
+            List<string> lmServers = _tmConfiguration.ParseLmServers();
+            var slotBehavior = _tmConfiguration.ParseSlotBehavior();
+            var timeSlots = _tmConfiguration.TimeSlots;
+            var slotDuration = _tmConfiguration.SlotDuration;
 
-        TransactionManagerState tmState = new TransactionManagerState();
-        
-        PrintConfigurationDetails(tmNick, tmUrl, tmServers, lmServers, slotBehavior, timeSlots, slotDuration);
+            TransactionManagerState tmState = new TransactionManagerState();
 
-        Uri tmUri = new Uri(tmUrl);
-        Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
-        
-        var transactionManagerService = new TransactionManagerService(lmServers);
+            PrintConfigurationDetails(tmNick, tmUrl, tmServers, lmServers, slotBehavior, timeSlots, slotDuration);
 
-        Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, tmUri.Port, lmServers.Count);
+            Uri tmUri = new Uri(tmUrl);
+            Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
 
-        server.Start();
+            var transactionManagerService = new TransactionManagerService(lmServers);
 
-        Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
-        Console.WriteLine("Press any key to stop...");
-        Console.ReadKey();
-        
-        transactionManagerService.CloseLeaseManagerStubs();
+            Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, tmUri.Port, lmServers.Count);
 
-        server.ShutdownAsync().Wait();
-        WaitHandle.Set();
+            server.Start();
+
+            Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
+            Console.WriteLine("Press any key to stop...");
+            Console.ReadKey();
+
+            transactionManagerService.CloseLeaseManagerStubs();
+
+            server.ShutdownAsync().Wait();
+            WaitHandle.Set();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
     }
-    
-    private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService, 
+
+    private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService,
         TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm)
     {
         return new Server
@@ -69,8 +83,8 @@ class Program
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
     }
-    
-    private static void PrintConfigurationDetails(string tmNick, string tmUrl, List<string> tmServers, List<string> lmServers, 
+
+    private static void PrintConfigurationDetails(string tmNick, string tmUrl, List<string> tmServers, List<string> lmServers,
         List<KeyValuePair<string, string>> slotBehavior, int timeSlots, int slotDuration)
     {
         Console.WriteLine("tmNick: " + tmNick);

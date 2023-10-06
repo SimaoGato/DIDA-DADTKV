@@ -20,16 +20,23 @@ namespace TransactionManager
         {
             _args = args;
 
-            TmNick = args[0];
-            TmUrl = args[1];
-            NumberOfTm = int.Parse(args[2]);
-            NumberOfLm = int.Parse(args[3 + NumberOfTm * 2]);
+            try
+            {
+                TmNick = args[0];
+                TmUrl = args[1];
+                NumberOfTm = int.Parse(args[2]);
+                NumberOfLm = int.Parse(args[3 + NumberOfTm * 2]);
 
-            int argBreaker = Array.IndexOf(args, "-");
-            TimeSlots = int.Parse(args[argBreaker + 1]);
-            SlotDuration = int.Parse(args[argBreaker + 2]);
-            SlotBehaviorCount = int.Parse(args[argBreaker + 3]);
-            StartTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
+                int argBreaker = Array.IndexOf(args, "-");
+                TimeSlots = int.Parse(args[argBreaker + 1]);
+                SlotDuration = int.Parse(args[argBreaker + 2]);
+                SlotBehaviorCount = int.Parse(args[argBreaker + 3]);
+                StartTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error parsing configuration: " + ex.Message);
+            }
         }
 
         public List<string> ParseTmServers()
@@ -37,7 +44,7 @@ namespace TransactionManager
             List<string> tmServers = new List<string>();
             for (int i = 0; i < NumberOfTm; i++)
             {
-                if (_args[4 + i * 2] != TmUrl)
+                if (_args.Length > 4 + i * 2 && _args[4 + i * 2] != TmUrl)
                 {
                     tmServers.Add(_args[4 + i * 2]);
                 }
@@ -50,7 +57,10 @@ namespace TransactionManager
             List<string> lmServers = new List<string>();
             for (int i = 0; i < NumberOfLm; i++)
             {
-                lmServers.Add(_args[5 + NumberOfTm * 2 + i * 2]);
+                if (_args.Length > 5 + NumberOfTm * 2 + i * 2)
+                {
+                    lmServers.Add(_args[5 + NumberOfTm * 2 + i * 2]);
+                }
             }
             return lmServers;
         }
@@ -61,20 +71,24 @@ namespace TransactionManager
             var start = Array.IndexOf(_args, "-") + 4;
             for (int i = start; i < start + SlotBehaviorCount; i++)
             {
-                int index = _args[i].IndexOf("(");
-                KeyValuePair<string, string> keyValuePair;
-                if (index != -1)
+                if (i < _args.Length)
                 {
-                    keyValuePair = new KeyValuePair<string, string>(_args[i].Substring(0, index),
-                        _args[i].Substring(index));
+                    int index = _args[i].IndexOf("(");
+                    KeyValuePair<string, string> keyValuePair;
+                    if (index != -1)
+                    {
+                        keyValuePair = new KeyValuePair<string, string>(_args[i].Substring(0, index),
+                            _args[i].Substring(index));
+                    }
+                    else
+                    {
+                        keyValuePair = new KeyValuePair<string, string>(_args[i], "");
+                    }
+                    slotBehavior.Add(keyValuePair);
                 }
-                else
-                {
-                    keyValuePair = new KeyValuePair<string, string>(_args[i], "");
-                }
-                slotBehavior.Add(keyValuePair);
             }
             return slotBehavior;
         }
     }
 }
+
