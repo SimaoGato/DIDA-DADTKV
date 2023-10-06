@@ -7,18 +7,18 @@ using Timer = System.Timers.Timer;
 class Program
 {
 
-    private ClientLogic clientLogic;
+    private ClientConfiguration _clientConfiguration;
     static ManualResetEvent waitHandle = new ManualResetEvent(false);
 
     private Program(string[] args)
     {
-        clientLogic = new ClientLogic(args);
+        _clientConfiguration = new ClientConfiguration(args);
     }
 
     private static void Main(string[] args)
     {
         Program program = new Program(args);
-        TimeSpan timeToStart = program.clientLogic.StartTime - DateTime.Now;
+        TimeSpan timeToStart = program._clientConfiguration.StartTime - DateTime.Now;
         int msToWait = (int)timeToStart.TotalMilliseconds;
         Console.WriteLine($"Starting Client in {timeToStart} s");
         Timer slotTimer = new Timer(msToWait);
@@ -29,66 +29,55 @@ class Program
     }
 
     private void StartProgram()
-        // TODO error handling
     {
-        try
+        
+        _clientConfiguration.PrintArgs();
+        if (_clientConfiguration.NumberOfTm == 0)
         {
-            clientLogic.PrintArgs();
-            if (clientLogic.NumberOfTm == 0)
-            {
-                Console.WriteLine("Error: There is no available Transaction Manager Server");
-                Thread.Sleep(5000);
-                waitHandle.Set();
-                return;
-            }
+            Console.WriteLine("Error: There is no available Transaction Manager Server");
+            Thread.Sleep(5000);
+            waitHandle.Set();
+            return;
+        }
 
-            ClientService clientService = new ClientService(clientLogic.MainTmServer, clientLogic.Servers);
+        ClientService clientService = new ClientService(_clientConfiguration.MainTmServer, _clientConfiguration.Servers);
 
-            if (!File.Exists(clientLogic.ScriptPath))
-            {
-                Console.WriteLine("The specified script file does not exist.");
-                Thread.Sleep(5000);
-                waitHandle.Set();
-                return;
-            }
+        if (!File.Exists(_clientConfiguration.ScriptPath))
+        {
+            Console.WriteLine("The specified script file does not exist.");
+            Thread.Sleep(5000);
+            waitHandle.Set();
+            return;
+        }
 
-            var script = File.ReadAllLines(clientLogic.ScriptPath);
-            foreach (var command in script)
+        var script = File.ReadAllLines(_clientConfiguration.ScriptPath);
+        foreach (var command in script)
+        {
+            var parts = command.Split(' ');
+            switch (parts[0])
             {
-                var parts = command.Split(' ');
-                switch (parts[0])
-                {
-                    case "T":
-                        var objectsToRead = clientLogic.ParseObjectsToRead(parts);
-                        var objectsToWrite = clientLogic.ParseObjectsToWrite(parts);
-                        clientLogic.PrintTxObj(objectsToRead, objectsToWrite);
-                        clientService.TxSubmit(clientLogic.ClientNick, objectsToRead, objectsToWrite);
-                        break;
-                    case "S":
-                        clientService.Status();
-                        break;
-                    case "W":
-                        Thread.Sleep(int.Parse(parts[1]));
-                        break;
-                }
-            }
-
-            while (true)
-            {
-                var co = Console.ReadLine();
-                if (co == "q")
-                {
-                    clientService.CloseClientStubs();
+                case "T":
+                    var objectsToRead = _clientConfiguration.ParseObjectsToRead(parts);
+                    var objectsToWrite = _clientConfiguration.ParseObjectsToWrite(parts);
+                    _clientConfiguration.PrintTxObj(objectsToRead, objectsToWrite);
+                    clientService.TxSubmit(_clientConfiguration.ClientNick, objectsToRead, objectsToWrite);
                     break;
-                }
+                case "S":
+                    clientService.Status();
+                    break;
+                case "W":
+                    Thread.Sleep(int.Parse(parts[1]));
+                    break;
             }
-            waitHandle.Set();
         }
-        catch (Exception e)
+
+        while (true)
         {
-            Console.WriteLine(e);
-            Thread.Sleep(10000);
-            waitHandle.Set();
+            var co = Console.ReadLine();
+            if (co != "q") continue;
+            clientService.CloseClientStubs();
+            break;
         }
+        waitHandle.Set();
     }
 }

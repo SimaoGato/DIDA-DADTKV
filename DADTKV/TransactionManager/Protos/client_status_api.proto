@@ -8,6 +8,5 @@ message StatusRequest {
 }
 
 message StatusResponse {
-  string nick = 1;
-  bool status = 2;
+  bool status = 1;
 }

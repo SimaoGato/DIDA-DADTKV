@@ -1,6 +1,6 @@
 ﻿namespace Client
 {
-    public class ClientLogic
+    public class ClientConfiguration
     {
         private readonly string[] _clientArgs;
         public string ClientNick { get; }
@@ -14,7 +14,7 @@
         public string MainTmServer { get; }
         public DateTime StartTime { get; }
 
-        public ClientLogic(string[] args)
+        public ClientConfiguration(string[] args)
         {
             _clientArgs = args;
             ClientNick = args[0];

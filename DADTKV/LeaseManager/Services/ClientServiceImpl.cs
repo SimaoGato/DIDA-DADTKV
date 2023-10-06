@@ -18,7 +18,6 @@ public class ClientStatusServiceImpl : ClientStatusService.ClientStatusServiceBa
     {
         StatusResponse response = new StatusResponse
         {
-            Nick = nick,
             Status = true
         };
         return response;
