@@ -4,6 +4,7 @@ namespace LeaseManager;
 
 public class LeaseManagerService
 {
+    List<GrpcChannel> _channels = new List<GrpcChannel>();
     private List<LeaseResponseService.LeaseResponseServiceClient> _transactionManagersStubs = 
         new List<LeaseResponseService.LeaseResponseServiceClient>();
 
@@ -13,6 +14,7 @@ public class LeaseManagerService
         {
             var channel = GrpcChannel.ForAddress(tmAddress);
             _transactionManagersStubs.Add(new LeaseResponseService.LeaseResponseServiceClient(channel));
+            _channels.Add(channel);
         }
     }
     
@@ -38,6 +40,14 @@ public class LeaseManagerService
 
         return true;
 
+    }
+    
+    public void CloseStubs()
+    {
+        foreach (var ch in _channels)
+        {
+            ch.ShutdownAsync().Wait();
+        }
     }
     
 }

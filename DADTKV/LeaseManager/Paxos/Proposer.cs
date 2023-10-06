@@ -4,6 +4,7 @@ namespace LeaseManager.Paxos;
 
 public class Proposer
 {
+    private List<GrpcChannel> _channels = new List<GrpcChannel>();
     private List<PaxosService.PaxosServiceClient> _stubs =
         new List<PaxosService.PaxosServiceClient>();
     private int _IDp; 
@@ -33,6 +34,7 @@ public class Proposer
         {
             var channel = GrpcChannel.ForAddress(addr);
             var stub = new PaxosService.PaxosServiceClient(channel);
+            _channels.Add(channel);
             _stubs.Add(stub);
         }
 
@@ -195,5 +197,13 @@ public class Proposer
         }
 
         return result;
+    }
+
+    public void CloseStubs()
+    {
+        foreach (var ch in _channels)
+        {
+            ch.ShutdownAsync().Wait();
+        }
     }
 }
