@@ -13,6 +13,7 @@ public class Proposer
     private int _nServers;
     private Acceptor _acceptor;
     private int _timeout = 1;
+    private bool _secondPhase = true;
 
     public List<List<string>> Value
     {
@@ -23,6 +24,7 @@ public class Proposer
     public void PrepareForNextEpoch()
     {
         _IDa = -1;
+        _secondPhase = true; // Reset second phase
         _value.Clear();
     }
   
@@ -43,17 +45,16 @@ public class Proposer
 
     public void StartPaxos()
     {
-        var leaderId = (_acceptor.LeaderID % _nServers);
-        
-        //Console.WriteLine("LeaderID: {0} Acceptor-LeaderID: {1}", leaderId, _acceptor.LeaderID);
+        var leaderId = _acceptor.LeaderID;
+        Console.WriteLine("Leader's ID: {0} from LM: {1}", leaderId, (leaderId % _nServers));
         
         // If there is no leader, start with phase 1
-        if (_acceptor.LeaderID == -1)
+        if (leaderId == -1)
         {
             //Console.WriteLine("START WITH PHASE ONE 1");
             PhaseOne();
         }
-        else if (leaderId == (_IDp % _nServers)) // Multi-Paxos
+        else if (_IDp == leaderId) // Multi-Paxos
         {
             //Console.WriteLine("START WITH PHASE ONE 2");
             PhaseTwo();
@@ -105,19 +106,21 @@ public class Proposer
                         auxLease.Add(list);
                     }
                     _value = auxLease; // Yes, update value
+                    _IDa = promise.IDa; 
+                    _secondPhase = false; // No need to go to phase 2
                     //Console.WriteLine("(Proposer):Value has changed: {0}", PrintLease(_value));
                 }
             }
         }
         //Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, PrintLease(_value));
         // Did it receive promises from a majority?
-        if (count > _nServers / 2)
+        if ((count > _nServers / 2) && _secondPhase)
         {
             _timeout = 1; 
             //Console.WriteLine("(Proposer):Paxos phase 2 with value: {0}", PrintLease(_value));
             PhaseTwo(); // Yes, go to phase 2
         }
-        else
+        else if (_secondPhase)
         {
             // Retry again with higher ID 
             _IDp += _nServers;
@@ -129,6 +132,10 @@ public class Proposer
             _timeout *= 2;
             //Console.WriteLine("(Proposer):Retrying prepare with new ID: {0}", _IDp);
             PhaseOne();
+        }
+        else
+        {
+            Console.WriteLine("(P: NEW LEADER): With ID: {0}, the VALUE is: {1}, from IDA: {2}", _IDp, PrintLease(_value), _IDa);
         }
     }
 

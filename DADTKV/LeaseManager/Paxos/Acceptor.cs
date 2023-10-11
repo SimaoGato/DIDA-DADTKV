@@ -68,6 +68,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
                 //Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} Value: {1}", _IDa, PrintLease(_value));
             }
             promise.IDp = _IDp;
+            _leaderID = _IDp; // Now it responds to a new leader
         }
         promise.IDa = _IDa;
         foreach (var leaseAux in _value)
@@ -112,7 +113,6 @@ public class Acceptor : PaxosService.PaxosServiceBase
                 accepted.Value.Add(lease);
             }
             
-            _leaderID = _IDp;
             Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", PrintLease(_value), _IDp);
             _leaseManagerService.SendLeases(_value);
         }
