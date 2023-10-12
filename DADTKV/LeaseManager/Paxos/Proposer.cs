@@ -63,7 +63,7 @@ public class Proposer
 
     public async void PhaseOne()
     {
-        //Console.WriteLine("PHASE ONE 1 TIMEOUT: {0}", _timeout);
+        Console.WriteLine("PHASE ONE 1 TIMEOUT: {0}", _timeout);
         // Want to propose a value, send prepare ID
         var prepare = new Prepare
         {
@@ -71,24 +71,20 @@ public class Proposer
         };
         
         List<Task<Promise>> sendTasks = new List<Task<Promise>>();
-        sendTasks.Add(new Task<Promise>(() => _acceptor.DoPhaseOne(prepare)));
+        sendTasks.Add(Task.Run(() => _acceptor.DoPhaseOne(prepare)));
         foreach (var stub in _stubs)
         {
-            sendTasks.Add(new Task<Promise>(() => stub.PaxosPhaseOne(prepare)));
+            sendTasks.Add(Task.Run(() => stub.PaxosPhaseOne(prepare)));
         }
 
-        foreach (var task in sendTasks)
+        int count = 0;
+        while (count <= _nServers / 2 && sendTasks.Count > 0)
         {
-            //Console.WriteLine("(Proposer):Paxos prepare with IDp: {0}", _IDp);
-            task.Start(); 
-        }
-        
-        await Task.WhenAll(sendTasks);
-
-        int count = 0; // Count itself (the acceptor)
-        foreach (var resultTask in sendTasks)
-        {
-            Promise promise = await resultTask;
+            //Console.WriteLine("COUNT: {0}", count);
+            Task<Promise> completedTask = await Task.WhenAny(sendTasks);
+            sendTasks.Remove(completedTask);
+            
+            Promise promise = await completedTask;
             //Console.WriteLine("(Proposer):Promise received with IDp: {0}", promise.IDp);
             
             // Received a promise (with its ID)?
@@ -113,11 +109,13 @@ public class Proposer
             }
         }
         //Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, PrintLease(_value));
+        
         // Did it receive promises from a majority?
         if ((count > _nServers / 2) && _secondPhase)
         {
-            _timeout = 1; 
-            //Console.WriteLine("(Proposer):Paxos phase 2 with value: {0}", PrintLease(_value));
+            _timeout = 1;
+            _secondPhase = false; // TODO: [CHECK] this is here in case that a slow task tries to do phase 2 after the proposer is already doing it
+            Console.WriteLine("(Proposer):GO TO PAXOS PHASE 2 with value: {0}", PrintLease(_value));
             PhaseTwo(); // Yes, go to phase 2
         }
         else if (_secondPhase)
