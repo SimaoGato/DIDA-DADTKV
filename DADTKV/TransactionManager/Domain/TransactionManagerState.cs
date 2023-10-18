@@ -64,5 +64,17 @@ namespace TransactionManager
                 throw new Exception($"Error receiving leases: {ex.Message}");
             }
         }
+        
+        // method to return leasesPerLeaseManager
+        public List<List<List<string>>> GetLeasesPerLeaseManager()
+        {
+            return _leasesPerLeaseManager;
+        }
+        
+        // method to clear leasesPerLeaseManager
+        public void ClearLeasesPerLeaseManager()
+        {
+            _leasesPerLeaseManager.Clear();
+        }
     }
 }

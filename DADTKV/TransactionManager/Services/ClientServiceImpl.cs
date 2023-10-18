@@ -8,12 +8,15 @@ namespace TransactionManager
         private readonly TransactionManagerService _transactionManagerService;
         private readonly TransactionManagerState _transactionManagerState;
         private readonly string _transactionManagerId;
+        private SharedContext _sharedContext;
 
-        public ClientTxServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, TransactionManagerState transactionManagerState)
+        public ClientTxServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, 
+            TransactionManagerState transactionManagerState, SharedContext sharedContext)
         {
             _transactionManagerId = transactionManagerId;
             _transactionManagerService = transactionManagerService;
             _transactionManagerState = transactionManagerState;
+            _sharedContext = sharedContext;
         }
 
         public override Task<TransactionResponse> TxSubmit(TransactionRequest request, ServerCallContext context)
@@ -29,11 +32,19 @@ namespace TransactionManager
             // Combine objects to read and objects to write into a single list
             objectsRequested.AddRange(request.ObjectsToRead.Select(item => item));
             objectsRequested.AddRange(request.ObjectsToWrite.Select(item => item.Key));
+            
+            Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
 
             // Request a lease for the objects
             Console.WriteLine("{0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
-    
-            Console.WriteLine("Received transaction request from client {0}", clientId);
+            
+            
+            Console.WriteLine("[ClientServiceImpl] {0} waiting for lease signal", _transactionManagerId);
+            // Wait for signal
+            _sharedContext.LeaseSignal.WaitOne();
+            Console.WriteLine("[ClientServiceImpl] {0} lease signal received", _transactionManagerId);
+            
+            _sharedContext.LeaseSignal.Reset();
 
             List<DadInt> responseDadIntList = new List<DadInt>();
 
@@ -42,7 +53,7 @@ namespace TransactionManager
                 // Read objects
                 foreach (string dadIntKey in request.ObjectsToRead)
                 {
-                    Console.WriteLine("Reading object: {0}", dadIntKey);
+                    // Console.WriteLine("Reading object: {0}", dadIntKey);
 
                     if (_transactionManagerState.ContainsKey(dadIntKey))
                     {
@@ -64,9 +75,11 @@ namespace TransactionManager
 
                     objectsRequested.Add(key);
                     _transactionManagerState.WriteOperation(key, value);
-                    Console.WriteLine("Writing object: {0} with value {1}", key, value);
+                    // Console.WriteLine("Writing object: {0} with value {1}", key, value);
                 }
             }
+            
+            Console.WriteLine("Transaction completed");
 
             TransactionResponse response = new TransactionResponse();
             response.ObjectsRead.AddRange(responseDadIntList);

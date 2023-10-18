@@ -72,13 +72,14 @@ class Program
     private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService,
         TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm)
     {
+        SharedContext sharedContext = new SharedContext();
         return new Server
         {
             Services =
             {
-                ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState)),
+                ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState, sharedContext)),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
-                LeaseResponseService.BindService(new LeaseManagerServiceImpl(tmState, numberOfLm))
+                LeaseResponseService.BindService(new LeaseManagerServiceImpl(tmNick, tmState, numberOfLm, sharedContext))
             },
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
