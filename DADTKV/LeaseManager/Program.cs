@@ -64,35 +64,31 @@ class Program
         TimeSpan timeToStart = program._startTime - DateTime.Now;
         int msToWait = (int)timeToStart.TotalMilliseconds;
         Console.WriteLine($"Starting in {timeToStart} s");
+        Thread.Sleep(msToWait);
         
-        Timer slotTimer = new Timer(msToWait);
-        slotTimer.Elapsed += (_, _) => program.StartProgram();
-        slotTimer.AutoReset = false;
-        slotTimer.Start();
-        _waitHandle.WaitOne();
-    }
-
-    private void StartProgram() 
-    {
-        int counter = 0;
-        Timer slotTimer = new Timer(_slotDuration);
-        slotTimer.Elapsed += (sender, e) =>
+        int round = 0;
+        ManualResetEvent timerFinished = new ManualResetEvent(true);
+        Timer slotTimer = new Timer(program._slotDuration);
+        slotTimer.Elapsed += (_, _) =>
         {
-            _proposer.PrepareForNextEpoch();
-            _acceptor.PrepareForNextEpoch();
-            Paxos();
-            counter++;
-            if (counter >= _timeSlots) slotTimer.Stop();
+            if (timerFinished.WaitOne(0))
+            {
+                Console.WriteLine("---Slot " + round + " started---");
+                timerFinished.Reset(); 
+                program._proposer.PrepareForNextEpoch();
+                program._acceptor.PrepareForNextEpoch();
+                program.Paxos();
+                round++;
+                if (round >= program._timeSlots) slotTimer.Stop();
+                timerFinished.Set();
+            }
         };
         slotTimer.AutoReset = true;
         slotTimer.Start();
-
+        
         Console.WriteLine("Press any key to stop...");
         Console.ReadKey();
-        _lmService.CloseStubs();
-        _proposer.CloseStubs();
-        _server.ShutdownAsync().Wait();
-        _waitHandle.Set();
+        program.ShutDown();
     }
 
     private void Paxos()
@@ -101,5 +97,12 @@ class Program
         Console.WriteLine("------ STARTING MULTI-PAXOS ------");
         _proposer.StartPaxos();
         _lmState.CleanRequestedLeases();
+    }
+
+    private void ShutDown()
+    {
+        _lmService.CloseStubs();
+        _proposer.CloseStubs();
+        _server.ShutdownAsync().Wait();
     }
 }
