@@ -82,7 +82,13 @@ class Program
 
     static void AddSlotBehavior(string[] parts, Config config)
     {
-        var slotBehavior = string.Join("", parts, 1, parts.Length - 1);
+        var slot = parts[1];
+        var numTMs = config.TransactionManagers.Count;
+        var behaviorTMs = string.Join("", parts, 2, numTMs);
+        var numLMs = config.LeaseManagers.Count;
+        var behaviorLMs = string.Join("", parts, 2 + numTMs, numLMs);
+        var suspects = string.Join("" , parts, 2 + numTMs + numLMs, parts.Length - 2 - numTMs - numLMs);
+        var slotBehavior = $"{slot}#{behaviorTMs}#{behaviorLMs}#{suspects}";
         config.SlotBehaviors.Add(slotBehavior);
     }
 

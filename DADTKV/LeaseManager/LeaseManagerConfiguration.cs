@@ -10,8 +10,8 @@
         public List<string> tmServers;
         public int timeSlots;
         public int slotDuration;
-        private int slotBehaviorCount;
-        public List<KeyValuePair<string, string>> slotBehavior;
+        private int _slotBehaviorsCount; // TODO: If this is == timeSlots, then remove
+        public Dictionary<int, List<string>> slotBehaviors; 
         public DateTime startTime;
 
         public LeaseManagerConfiguration(string[] args) {
@@ -26,8 +26,8 @@
             var argBreaker = Array.IndexOf(args, "-");
             timeSlots = int.Parse(args[argBreaker + 1]);
             slotDuration = int.Parse(args[argBreaker + 2]);
-            slotBehaviorCount = int.Parse(args[argBreaker + 3]);
-            slotBehavior = ParseSlotBehavior();
+            _slotBehaviorsCount = int.Parse(args[argBreaker + 3]);
+            slotBehaviors = ParseSlotBehaviors();
             startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
             
             PrintArgs();
@@ -54,25 +54,27 @@
             return lmServers;
         }
         
-        public List<KeyValuePair<string, string>> ParseSlotBehavior() {
-            var slotBehavior = new List<KeyValuePair<string, string>>();
+        
+        public Dictionary<int, List<string>> ParseSlotBehaviors() {
+            var slotBehaviors = new Dictionary<int, List<string>>();
             var start = Array.IndexOf(_args, "-") + 4;
-            for (int i = start; i < start + slotBehaviorCount; i++) {
-                int index = _args[i].IndexOf("(");
-                KeyValuePair<string, string> keyValuePair;
-                if (index != -1) {
-                    keyValuePair = new KeyValuePair<string, string>(_args[i].Substring(0, index),
-                        _args[i].Substring(index));
+            for (var i = start; i < start + _slotBehaviorsCount; i++)
+            {
+                var behaviors = new List<string>();
+                var parts = _args[i].Split('#');
+                var slot = int.Parse(parts[0]);
+                behaviors.Add(parts[1]);
+                behaviors.Add(parts[2]);
+                if (parts.Length > 3)
+                {
+                    behaviors.Add(parts[3]);
                 }
-                else {
-                    keyValuePair = new KeyValuePair<string, string>(_args[i], "");
-                }
-                slotBehavior.Add(keyValuePair);
+                slotBehaviors.Add(slot, behaviors);
             }
-            return slotBehavior;
+            return slotBehaviors;
         }
 
-        public void PrintArgs()
+        private void PrintArgs()
         {
             Console.WriteLine("lmNick: " + lmNick);
             Console.WriteLine("lmUrl: " + lmUrl);
@@ -87,10 +89,15 @@
             {
                 Console.WriteLine(tmServer);
             }
-            Console.WriteLine("slotBehavior: ");
-            foreach (var slot in slotBehavior)
+            Console.WriteLine("slotBehaviors: ");
+            foreach (var slot in slotBehaviors)
             {
-                Console.WriteLine(slot.Key + "-" + slot.Value);
+                Console.Write("Slot: " + slot.Key + " Behavior: ");
+                foreach (var behavior in slot.Value)
+                {
+                   Console.Write(behavior + " "); 
+                }
+                Console.WriteLine();
             }
             Console.WriteLine("timeSlots: " + timeSlots);
             Console.WriteLine("slotDuration: " + slotDuration);

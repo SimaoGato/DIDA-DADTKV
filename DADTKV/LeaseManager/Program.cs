@@ -10,15 +10,10 @@ class Program
     private string _lmUrl;
     private int _lmId;
     private int _numberOfLm;
-    private List<string> _lmServers;
-    private List<string> _tmServers;
     private DateTime _startTime;
     private int _timeSlots;
     private int _slotDuration;
-    private int _slotBehaviorCount;
-    private List<KeyValuePair<string, string>> _slotBehavior;
-    static ManualResetEvent _waitHandle = new ManualResetEvent(false);
-    
+    private Dictionary<int, List<string>> _slotBehaviors;
     private Server _server;
     private Proposer _proposer;
     private Acceptor _acceptor;
@@ -32,15 +27,15 @@ class Program
         _lmUrl = lmLogic.lmUrl;
         _lmId = lmLogic.lmId;
         _numberOfLm = lmLogic.numberOfLm;
-        _lmServers = lmLogic.ParseLmServers();
-        _tmServers = lmLogic.ParseTmServers();
-        _slotBehavior = lmLogic.ParseSlotBehavior();
+        List<string> lmServers = lmLogic.ParseLmServers();
+        List<string> tmServers = lmLogic.ParseTmServers();
+        _slotBehaviors = lmLogic.ParseSlotBehaviors();
         _timeSlots = lmLogic.timeSlots;
         _slotDuration = lmLogic.slotDuration;
         _startTime = lmLogic.startTime;
-        _lmService = new LeaseManagerService(_tmServers);
+        _lmService = new LeaseManagerService(tmServers);
         _acceptor = new Acceptor(_lmService);
-        _proposer = new Proposer(_lmId, _numberOfLm, _lmServers, _acceptor);
+        _proposer = new Proposer(_lmId, _numberOfLm, lmServers, _acceptor);
         
         var lmUri = new Uri(_lmUrl);
         _server = new Server
@@ -73,13 +68,20 @@ class Program
         {
             if (timerFinished.WaitOne(0))
             {
-                Console.WriteLine("---Slot " + round + " started---");
-                timerFinished.Reset(); 
+                Console.WriteLine();
+                Console.WriteLine("[ROUND: " + round + "]");
+                timerFinished.Reset();
                 program._proposer.PrepareForNextEpoch();
                 program._acceptor.PrepareForNextEpoch();
                 program.Paxos();
                 round++;
-                if (round >= program._timeSlots) slotTimer.Stop();
+                if (round >= program._timeSlots)
+                {
+                    slotTimer.Stop();
+                    // TODO: Do shutdown
+                    Console.WriteLine("[ENDING...]");
+                    Console.WriteLine("Press any key to close...");
+                }
                 timerFinished.Set();
             }
         };
@@ -94,7 +96,7 @@ class Program
     private void Paxos()
     {
         _proposer.Value.AddRange(_lmState.RequestedLeases);
-        Console.WriteLine("------ STARTING MULTI-PAXOS ------");
+        Console.WriteLine("[Starting Multi-Paxos...]");
         _proposer.StartPaxos();
         _lmState.CleanRequestedLeases();
     }
