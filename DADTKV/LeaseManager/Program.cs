@@ -10,6 +10,7 @@ class Program
     private string _lmUrl;
     private int _lmId;
     private int _numberOfLm;
+    private Dictionary<int, string> _lmIdsMap;
     private DateTime _startTime;
     private int _timeSlots;
     private int _slotDuration;
@@ -27,9 +28,10 @@ class Program
         _lmUrl = lmLogic.lmUrl;
         _lmId = lmLogic.lmId;
         _numberOfLm = lmLogic.numberOfLm;
-        Dictionary<string,string> lmServers = lmLogic.ParseLmServers();
+        _lmIdsMap = lmLogic.lmIdsMap;
+        Dictionary<string, string> lmServers = lmLogic.lmServers;
         List<string> tmServers = lmLogic.ParseTmServers();
-        _slotBehaviors = lmLogic.ParseSlotBehaviors();
+        _slotBehaviors = lmLogic.slotBehaviors;
         _timeSlots = lmLogic.timeSlots;
         _slotDuration = lmLogic.slotDuration;
         _startTime = lmLogic.startTime;
@@ -71,18 +73,19 @@ class Program
                 Console.WriteLine();
                 Console.WriteLine("[ROUND: " + round + "]");
                 timerFinished.Reset();
+                program._proposer.PrepareForNextEpoch();
+                program._acceptor.PrepareForNextEpoch();
                 bool isCrashed = program.CheckCrashes(round);
                 if (!isCrashed)
                 {
-                    program._proposer.PrepareForNextEpoch();
-                    program._acceptor.PrepareForNextEpoch();
+                    // TODO: Maybe call paxos only if we have a majority (?)
                     program.Paxos();
                 }
                 round++;
                 if ((round > program._timeSlots) || isCrashed)
                 {
                     slotTimer.Stop();
-                    // TODO: Do shutdown
+                    // TODO: Do automatic shutdown (?)
                     Console.WriteLine("[ENDING...]");
                     Console.WriteLine("Press any key to close...");
                 }
@@ -133,8 +136,13 @@ class Program
         {
             if (lmStatus[i] == 'C')
             {
-                Console.WriteLine("Need to close connection to: " + i);
-                // TODO: Close connection to LM i
+                if (_lmIdsMap.ContainsKey(i))
+                {
+                    Console.WriteLine("Need to close connection to: " + i);
+                    string nick = _lmIdsMap[i];
+                    _proposer.RemoveNode(nick, i);
+                    _lmIdsMap.Remove(i);
+                }
             }    
         }
         

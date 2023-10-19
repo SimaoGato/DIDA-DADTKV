@@ -5,6 +5,7 @@
         public string lmUrl;
         public int lmId;
         public int numberOfLm;
+        public Dictionary<int, string> lmIdsMap;
         public Dictionary<string, string> lmServers;
         public int numberOfTm;
         public List<string> tmServers;
@@ -20,14 +21,14 @@
             lmUrl = args[1];
             lmId = int.Parse(args[2]);
             numberOfLm = int.Parse(args[3]);
-            lmServers = ParseLmServers();
+            ParseLmServers();
             numberOfTm = int.Parse(args[4 + numberOfLm * 2]);
             tmServers = ParseTmServers();
             var argBreaker = Array.IndexOf(args, "-");
             timeSlots = int.Parse(args[argBreaker + 1]);
             slotDuration = int.Parse(args[argBreaker + 2]);
             _slotBehaviorsCount = int.Parse(args[argBreaker + 3]);
-            slotBehaviors = ParseSlotBehaviors();
+            ParseSlotBehaviors();
             startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
             
             PrintArgs();
@@ -42,7 +43,8 @@
             return tmServers;
         }
 
-        public Dictionary<string,string> ParseLmServers() {
+        private void ParseLmServers() {
+            lmIdsMap = new Dictionary<int, string>();
             lmServers = new Dictionary<string, string>();
             for(int i = 0; i < numberOfLm; i++)
             {
@@ -50,14 +52,13 @@
                 string url = _args[5 + i * 2];
                 if (nickname != lmNick)
                 {
+                    lmIdsMap.Add(i, nickname);
                     lmServers.Add(nickname, url);
                 }
             }
-            return lmServers;
         }
         
-        
-        public Dictionary<int, List<string>> ParseSlotBehaviors() {
+        private void ParseSlotBehaviors() {
             slotBehaviors = new Dictionary<int, List<string>>();
             var start = Array.IndexOf(_args, "-") + 4;
             for (var i = start; i < start + _slotBehaviorsCount; i++)
@@ -73,7 +74,6 @@
                 }
                 slotBehaviors.Add(slot, behaviors);
             }
-            return slotBehaviors;
         }
 
         private void PrintArgs()
@@ -81,6 +81,11 @@
             Console.WriteLine("lmNick: " + lmNick);
             Console.WriteLine("lmUrl: " + lmUrl);
             Console.WriteLine("lmId: " + lmId);
+            Console.WriteLine("Lm Id to Nick: ");
+            foreach (var map in lmIdsMap)
+            {
+                Console.WriteLine(map.Key + ": " + map.Value);
+            }
             Console.WriteLine("LmServers: ");
             foreach (var lmServer in lmServers)
             {

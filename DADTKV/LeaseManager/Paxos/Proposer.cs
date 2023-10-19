@@ -11,6 +11,7 @@ public class Proposer
     private List<List<string>> _value = new List<List<string>>();
     private int _nServers;
     private Acceptor _acceptor;
+    private int _leaderId;
     private int _timeout = 1;
     private bool _secondPhase = true;
 
@@ -22,6 +23,7 @@ public class Proposer
     
     public void PrepareForNextEpoch()
     {
+        _leaderId = _acceptor.LeaderID;
         _IDa = -1;
         _secondPhase = true; // Reset second phase
         _value.Clear();
@@ -46,16 +48,15 @@ public class Proposer
 
     public void StartPaxos()
     {
-        var leaderId = _acceptor.LeaderID;
-        Console.WriteLine("Leader's ID: {0} from LM: {1}", leaderId, (leaderId % _nServers));
+        Console.WriteLine("Leader's ID: {0} from LM: {1}", _leaderId, (_leaderId % _nServers));
         
         // If there is no leader, start with phase 1
-        if (leaderId == -1)
+        if (_leaderId == -1)
         {
             //Console.WriteLine("START WITH PHASE ONE 1");
             PhaseOne();
         }
-        else if (_IDp == leaderId) // Multi-Paxos
+        else if (_IDp == _leaderId) // Multi-Paxos
         {
             //Console.WriteLine("START WITH PHASE ONE 2");
             PhaseTwo();
@@ -197,6 +198,17 @@ public class Proposer
         }
 
         return result;
+    }
+    
+    public void RemoveNode(string nickname, int id)
+    {
+        if (_leaderId % _nServers == id)
+        {
+            _leaderId = -1; // leader has crashed
+        }
+        _channels[nickname].ShutdownAsync().Wait();
+        _channels.Remove(nickname);
+        _stubs.Remove(nickname);
     }
 
     public void CloseStubs()
