@@ -25,20 +25,20 @@ class Program
     private Program(string[] args)
     {
         _lmState = new LeaseManagerState();
-        var lmLogic = new LeaseManagerConfiguration(args);
-        _lmNick = lmLogic.lmNick;
-        _lmUrl = lmLogic.lmUrl;
-        _lmId = lmLogic.lmId;
-        _numberOfLm = lmLogic.numberOfLm;
-        _lmIdsMap = lmLogic.lmIdsMap;
-        Dictionary<string, string> lmServers = lmLogic.lmServers;
-        _numberOfTm = lmLogic.numberOfTm;
-        _tmIdsMap = lmLogic.tmIdsMap;
-        Dictionary<string, string> tmServers = lmLogic.tmServers;
-        _slotBehaviors = lmLogic.slotBehaviors;
-        _timeSlots = lmLogic.timeSlots;
-        _slotDuration = lmLogic.slotDuration;
-        _startTime = lmLogic.startTime;
+        var lmConfig = new LeaseManagerConfiguration(args);
+        _lmNick = lmConfig.lmNick;
+        _lmUrl = lmConfig.lmUrl;
+        _lmId = lmConfig.lmId;
+        _numberOfLm = lmConfig.numberOfLm;
+        _lmIdsMap = lmConfig.lmIdsMap;
+        Dictionary<string, string> lmServers = lmConfig.lmServers;
+        _numberOfTm = lmConfig.numberOfTm;
+        _tmIdsMap = lmConfig.tmIdsMap;
+        Dictionary<string, string> tmServers = lmConfig.tmServers;
+        _slotBehaviors = lmConfig.slotBehaviors;
+        _timeSlots = lmConfig.timeSlots;
+        _slotDuration = lmConfig.slotDuration;
+        _startTime = lmConfig.startTime;
         _lmService = new LeaseManagerService(tmServers);
         _acceptor = new Acceptor(_lmService);
         _proposer = new Proposer(_lmId, _numberOfLm, lmServers, _acceptor);

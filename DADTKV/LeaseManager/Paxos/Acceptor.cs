@@ -120,7 +120,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
         return accepted;
     }
     
-    private string PrintLease(List<List<string>> value)
+    private static string PrintLease(List<List<string>> value)
     {
         string result = "";
         foreach (var lease in value)
