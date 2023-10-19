@@ -154,29 +154,23 @@ public class Proposer
         }
         
         List<Task<Accepted>> sendTasks = new List<Task<Accepted>>();
-        sendTasks.Add(new Task<Accepted>(() => _acceptor.DoPhaseTwo(accept))); 
+        sendTasks.Add(Task.Run(() => _acceptor.DoPhaseTwo(accept)));
         foreach (var stub in _stubs)
         {
-            sendTasks.Add(new Task<Accepted>(() => stub.PaxosPhaseTwo(accept)));
+            sendTasks.Add(Task.Run(() => stub.PaxosPhaseTwo(accept)));
         }
-                                                          
-        foreach (var task in sendTasks)
-        {
-            //Console.WriteLine("(Proposer):Value to be accepted: {0}", PrintLease(_value));
-            task.Start(); 
-        }
-                                                                  
-        await Task.WhenAll(sendTasks);
 
-        int count = 0; // Count itself (the acceptor)
-        foreach (var resultTask in sendTasks)
+        int count = 0;
+        while (count <= _nServers / 2 && sendTasks.Count > 0)
         {
-            Accepted accepted = await resultTask;
+            Task<Accepted> completedTask = await Task.WhenAny(sendTasks);
+            sendTasks.Remove(completedTask);
+            
+            Accepted accepted = await completedTask;
             
             // Confirmation of acceptance ?
             if (accepted.IDp == _IDp) // Yes
             {
-                // do something
                 count++;
             }
         }
