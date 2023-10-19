@@ -27,7 +27,7 @@ class Program
         _lmUrl = lmLogic.lmUrl;
         _lmId = lmLogic.lmId;
         _numberOfLm = lmLogic.numberOfLm;
-        List<string> lmServers = lmLogic.ParseLmServers();
+        Dictionary<string,string> lmServers = lmLogic.ParseLmServers();
         List<string> tmServers = lmLogic.ParseTmServers();
         _slotBehaviors = lmLogic.ParseSlotBehaviors();
         _timeSlots = lmLogic.timeSlots;
@@ -61,7 +61,7 @@ class Program
         Console.WriteLine($"Starting in {timeToStart} s");
         Thread.Sleep(msToWait);
         
-        int round = 0;
+        int round = 1;
         ManualResetEvent timerFinished = new ManualResetEvent(true);
         Timer slotTimer = new Timer(program._slotDuration);
         slotTimer.Elapsed += (_, _) =>
@@ -71,11 +71,15 @@ class Program
                 Console.WriteLine();
                 Console.WriteLine("[ROUND: " + round + "]");
                 timerFinished.Reset();
-                program._proposer.PrepareForNextEpoch();
-                program._acceptor.PrepareForNextEpoch();
-                program.Paxos();
+                bool isCrashed = program.CheckCrashes(round);
+                if (!isCrashed)
+                {
+                    program._proposer.PrepareForNextEpoch();
+                    program._acceptor.PrepareForNextEpoch();
+                    program.Paxos();
+                }
                 round++;
-                if (round >= program._timeSlots)
+                if ((round > program._timeSlots) || isCrashed)
                 {
                     slotTimer.Stop();
                     // TODO: Do shutdown
@@ -106,5 +110,34 @@ class Program
         _lmService.CloseStubs();
         _proposer.CloseStubs();
         _server.ShutdownAsync().Wait();
+    }
+
+    private bool CheckCrashes(int round)
+    {
+        Console.WriteLine("[Checking Crashes...]");
+        if (!_slotBehaviors.ContainsKey(round))
+        {
+            Console.WriteLine("No behavior change for this round");
+            return false;
+        }
+        
+        List<string> behaviors = _slotBehaviors[round];
+        // TODO: Check crashes of TM's
+        string lmStatus = behaviors[1];
+        if (lmStatus[_lmId] == 'C')
+        {
+            Console.WriteLine("I am crashing... my ID: " + _lmId);
+            return true;
+        }
+        for (int i = 0; i < lmStatus.Length; i++)
+        {
+            if (lmStatus[i] == 'C')
+            {
+                Console.WriteLine("Need to close connection to: " + i);
+                // TODO: Close connection to LM i
+            }    
+        }
+        
+        return false;
     }
 }

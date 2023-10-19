@@ -4,9 +4,8 @@ namespace LeaseManager.Paxos;
 
 public class Proposer
 {
-    private List<GrpcChannel> _channels = new List<GrpcChannel>();
-    private List<PaxosService.PaxosServiceClient> _stubs =
-        new List<PaxosService.PaxosServiceClient>();
+    private Dictionary<string, GrpcChannel> _channels;
+    private Dictionary<string, PaxosService.PaxosServiceClient> _stubs;
     private int _IDp; 
     private int _IDa = -1;
     private List<List<string>> _value = new List<List<string>>();
@@ -28,16 +27,18 @@ public class Proposer
         _value.Clear();
     }
   
-    public Proposer(int iDp, int nServers,  List<string> addresses, Acceptor acceptor)
+    public Proposer(int iDp, int nServers,  Dictionary<string, string> servers, Acceptor acceptor)
     {
         _IDp = iDp;
         _nServers = nServers;
-        foreach (var addr in addresses)
+        _channels = new Dictionary<string, GrpcChannel>();
+        _stubs = new Dictionary<string, PaxosService.PaxosServiceClient>();
+        foreach (var server in servers)
         {
-            var channel = GrpcChannel.ForAddress(addr);
+            var channel = GrpcChannel.ForAddress(server.Value);
             var stub = new PaxosService.PaxosServiceClient(channel);
-            _channels.Add(channel);
-            _stubs.Add(stub);
+            _channels.Add(server.Key, channel);
+            _stubs.Add(server.Key, stub);
         }
 
         _acceptor = acceptor;
@@ -63,7 +64,7 @@ public class Proposer
 
     public async void PhaseOne()
     {
-        Console.WriteLine("PHASE ONE 1 TIMEOUT: {0}", _timeout);
+        Console.WriteLine("Phase One");
         // Want to propose a value, send prepare ID
         var prepare = new Prepare
         {
@@ -74,7 +75,7 @@ public class Proposer
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseOne(prepare)));
         foreach (var stub in _stubs)
         {
-            sendTasks.Add(Task.Run(() => stub.PaxosPhaseOne(prepare)));
+            sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseOne(prepare)));
         }
 
         int count = 0;
@@ -124,7 +125,7 @@ public class Proposer
             _IDp += _nServers;
             
             // Timeout to avoid live lock
-            //Console.WriteLine("(Proposer):Wait Timeout: {0}", _timeout);
+            Console.WriteLine("(Proposer):Wait Timeout: {0}", _timeout);
             
             Thread.Sleep(_timeout * 1000); 
             _timeout *= 2;
@@ -157,7 +158,7 @@ public class Proposer
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseTwo(accept)));
         foreach (var stub in _stubs)
         {
-            sendTasks.Add(Task.Run(() => stub.PaxosPhaseTwo(accept)));
+            sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseTwo(accept)));
         }
 
         int count = 0;
@@ -182,7 +183,7 @@ public class Proposer
         } 
     }
 
-    private string PrintLease(List<List<string>> value)
+    private static string PrintLease(List<List<string>> value)
     {
         string result = "";
         foreach (var lease in value)
@@ -202,7 +203,7 @@ public class Proposer
     {
         foreach (var ch in _channels)
         {
-            ch.ShutdownAsync().Wait();
+            ch.Value.ShutdownAsync().Wait();
         }
     }
 }

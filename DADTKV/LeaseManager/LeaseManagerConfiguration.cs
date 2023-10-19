@@ -5,7 +5,7 @@
         public string lmUrl;
         public int lmId;
         public int numberOfLm;
-        public List<string> lmServers;
+        public Dictionary<string, string> lmServers;
         public int numberOfTm;
         public List<string> tmServers;
         public int timeSlots;
@@ -42,13 +42,15 @@
             return tmServers;
         }
 
-        public List<string> ParseLmServers() {
-            List<string> lmServers = new List<string>();
+        public Dictionary<string,string> ParseLmServers() {
+            lmServers = new Dictionary<string, string>();
             for(int i = 0; i < numberOfLm; i++)
             {
-                if (_args[5 + i * 2] != lmUrl)
+                string nickname = _args[4 + i * 2];
+                string url = _args[5 + i * 2];
+                if (nickname != lmNick)
                 {
-                    lmServers.Add(_args[5 + i * 2]);
+                    lmServers.Add(nickname, url);
                 }
             }
             return lmServers;
@@ -56,7 +58,7 @@
         
         
         public Dictionary<int, List<string>> ParseSlotBehaviors() {
-            var slotBehaviors = new Dictionary<int, List<string>>();
+            slotBehaviors = new Dictionary<int, List<string>>();
             var start = Array.IndexOf(_args, "-") + 4;
             for (var i = start; i < start + _slotBehaviorsCount; i++)
             {
@@ -82,7 +84,7 @@
             Console.WriteLine("LmServers: ");
             foreach (var lmServer in lmServers)
             {
-                Console.WriteLine(lmServer);
+                Console.WriteLine(lmServer.Key + ": " + lmServer.Value);
             }
             Console.WriteLine("TmServers: ");
             foreach (var tmServer in tmServers)
