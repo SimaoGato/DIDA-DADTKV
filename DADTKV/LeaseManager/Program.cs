@@ -11,6 +11,8 @@ class Program
     private int _lmId;
     private int _numberOfLm;
     private Dictionary<int, string> _lmIdsMap;
+    private int _numberOfTm;
+    private Dictionary<int, string> _tmIdsMap;
     private DateTime _startTime;
     private int _timeSlots;
     private int _slotDuration;
@@ -30,7 +32,9 @@ class Program
         _numberOfLm = lmLogic.numberOfLm;
         _lmIdsMap = lmLogic.lmIdsMap;
         Dictionary<string, string> lmServers = lmLogic.lmServers;
-        List<string> tmServers = lmLogic.ParseTmServers();
+        _numberOfTm = lmLogic.numberOfTm;
+        _tmIdsMap = lmLogic.tmIdsMap;
+        Dictionary<string, string> tmServers = lmLogic.tmServers;
         _slotBehaviors = lmLogic.slotBehaviors;
         _timeSlots = lmLogic.timeSlots;
         _slotDuration = lmLogic.slotDuration;
@@ -125,7 +129,18 @@ class Program
         }
         
         List<string> behaviors = _slotBehaviors[round];
-        // TODO: Check crashes of TM's
+        string tmStatus = behaviors[0];
+        for (int i = 0; i < tmStatus.Length; i++)
+        {
+            if (tmStatus[i] == 'C' && _tmIdsMap.ContainsKey(i))
+            {
+                Console.WriteLine("Need to close connection to TM: " + i);
+                string nick = _tmIdsMap[i];
+                _lmService.RemoveStub(nick);
+                _tmIdsMap.Remove(i);
+            }
+        }
+        
         string lmStatus = behaviors[1];
         if (lmStatus[_lmId] == 'C')
         {
@@ -134,15 +149,12 @@ class Program
         }
         for (int i = 0; i < lmStatus.Length; i++)
         {
-            if (lmStatus[i] == 'C')
+            if (lmStatus[i] == 'C' && _lmIdsMap.ContainsKey(i))
             {
-                if (_lmIdsMap.ContainsKey(i))
-                {
-                    Console.WriteLine("Need to close connection to: " + i);
-                    string nick = _lmIdsMap[i];
-                    _proposer.RemoveNode(nick, i);
-                    _lmIdsMap.Remove(i);
-                }
+                Console.WriteLine("Need to close connection to LM: " + i);
+                string nick = _lmIdsMap[i];
+                _proposer.RemoveNode(nick, i);
+                _lmIdsMap.Remove(i);
             }    
         }
         

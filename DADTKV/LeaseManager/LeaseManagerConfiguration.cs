@@ -8,7 +8,8 @@
         public Dictionary<int, string> lmIdsMap;
         public Dictionary<string, string> lmServers;
         public int numberOfTm;
-        public List<string> tmServers;
+        public Dictionary<int, string> tmIdsMap;
+        public Dictionary<string, string> tmServers;
         public int timeSlots;
         public int slotDuration;
         private int _slotBehaviorsCount; // TODO: If this is == timeSlots, then remove
@@ -23,7 +24,7 @@
             numberOfLm = int.Parse(args[3]);
             ParseLmServers();
             numberOfTm = int.Parse(args[4 + numberOfLm * 2]);
-            tmServers = ParseTmServers();
+            ParseTmServers();
             var argBreaker = Array.IndexOf(args, "-");
             timeSlots = int.Parse(args[argBreaker + 1]);
             slotDuration = int.Parse(args[argBreaker + 2]);
@@ -34,13 +35,16 @@
             PrintArgs();
         }
         
-        public List<string> ParseTmServers() {
-            List<string> tmServers = new List<string>();
+        public void ParseTmServers() {
+            tmIdsMap = new Dictionary<int, string>();
+            tmServers = new Dictionary<string, string>(); 
             for(int i = 0; i < numberOfTm; i++)
             {
-                tmServers.Add(_args[6 + numberOfLm * 2 + i * 2]);
+                string nickname = _args[5 + numberOfLm * 2 + i * 2];
+                string url = _args[6 + numberOfLm * 2 + i * 2];
+                tmIdsMap.Add(i, nickname);
+                tmServers.Add(nickname, url);
             }
-            return tmServers;
         }
 
         private void ParseLmServers() {

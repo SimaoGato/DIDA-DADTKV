@@ -4,17 +4,18 @@ namespace LeaseManager;
 
 public class LeaseManagerService
 {
-    List<GrpcChannel> _channels = new List<GrpcChannel>();
-    private List<LeaseResponseService.LeaseResponseServiceClient> _transactionManagersStubs = 
-        new List<LeaseResponseService.LeaseResponseServiceClient>();
+    private Dictionary<string, GrpcChannel> _channels; 
+    private Dictionary<string, LeaseResponseService.LeaseResponseServiceClient> _transactionManagersStubs;
 
-    public LeaseManagerService(List<string> tmAddresses)
+    public LeaseManagerService(Dictionary<string, string> servers)
     {
-        foreach (var tmAddress in tmAddresses)
+        _channels = new Dictionary<string, GrpcChannel>();
+        _transactionManagersStubs = new Dictionary<string, LeaseResponseService.LeaseResponseServiceClient>();
+        foreach (var server in servers)
         {
-            var channel = GrpcChannel.ForAddress(tmAddress);
-            _transactionManagersStubs.Add(new LeaseResponseService.LeaseResponseServiceClient(channel));
-            _channels.Add(channel);
+            var channel = GrpcChannel.ForAddress(server.Value);
+            _transactionManagersStubs.Add(server.Key, new LeaseResponseService.LeaseResponseServiceClient(channel));
+            _channels.Add(server.Key, channel);
         }
     }
     
@@ -31,7 +32,7 @@ public class LeaseManagerService
 
         foreach (var tmStub in _transactionManagersStubs)
         {
-            var response = tmStub.SendLeases(request);
+            var response = tmStub.Value.SendLeases(request);
             if (!response.Ack)
             {
                 return false;
@@ -42,11 +43,18 @@ public class LeaseManagerService
 
     }
     
+    public void RemoveStub(string nickname)
+    {
+        _channels[nickname].ShutdownAsync().Wait();
+        _channels.Remove(nickname);
+        _transactionManagersStubs.Remove(nickname);
+    }
+    
     public void CloseStubs()
     {
         foreach (var ch in _channels)
         {
-            ch.ShutdownAsync().Wait();
+            ch.Value.ShutdownAsync().Wait();
         }
     }
     
