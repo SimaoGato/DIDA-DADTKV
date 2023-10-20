@@ -76,7 +76,10 @@ public class Proposer
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseOne(prepare)));
         foreach (var stub in _stubs)
         {
-            sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseOne(prepare)));
+            if (!Suspects.IsSuspected(stub.Key))
+            {
+                sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseOne(prepare)));
+            }
         }
 
         int count = 0;
@@ -159,7 +162,11 @@ public class Proposer
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseTwo(accept)));
         foreach (var stub in _stubs)
         {
-            sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseTwo(accept)));
+            if (!Suspects.IsSuspected(stub.Key))
+            {
+                Console.WriteLine("(Proposer): Sending accept to: {0}", stub.Key);
+                sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseTwo(accept)));
+            }
         }
 
         int count = 0;
@@ -181,7 +188,11 @@ public class Proposer
         if (count > _nServers / 2)
         {
             Console.WriteLine("(Proposer):FINISH PAXOS WITH VALUE: {0} (my id: {1})", PrintLease(_value), _IDp); 
-        } 
+        }
+        else
+        {
+            Console.WriteLine("(Proposer): DIDN'T ACHIEVED MAJORITY");
+        }
     }
 
     private static string PrintLease(List<List<string>> value)

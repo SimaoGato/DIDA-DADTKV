@@ -4,15 +4,19 @@ namespace LeaseManager.Paxos;
 
 public class Acceptor : PaxosService.PaxosServiceBase
 {
+    private int _lmId;
+    private int _nServers;
     private int _leaderID = -1; 
     private int _IDp = -1;
     private int _IDa = -1;
     private List<List<string>> _value = new List<List<string>>();
     private LeaseManagerService _leaseManagerService;
     
-    public Acceptor(LeaseManagerService leaseManagerService)
+    public Acceptor(int lmId, int nServers, LeaseManagerService leaseManagerService)
     {
+        _lmId = lmId;
         _leaseManagerService = leaseManagerService;
+        _nServers = nServers;
     }
 
     public int LeaderID
@@ -46,6 +50,13 @@ public class Acceptor : PaxosService.PaxosServiceBase
 
     public Promise DoPhaseOne(Prepare prepare)
     {
+        // Ignore calls of suspects
+        if ((prepare.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(prepare.IDp % _nServers)))
+        {
+            Console.WriteLine("(Acceptor): I am ignoring a prepare call from ID: {0}", prepare.IDp);
+            return new Promise() { IDp = -1 };
+        }
+        
         //Console.WriteLine("(Acceptor):Paxos prepare received with IDp: {0}", prepare.IDp);
         Promise promise = new Promise();
         
@@ -84,6 +95,11 @@ public class Acceptor : PaxosService.PaxosServiceBase
     
     public Accepted DoPhaseTwo(Accept accept)
     {
+        if ((accept.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(accept.IDp % _nServers)))
+        {
+            Console.WriteLine("(Acceptor): I am ignoring a accept call from ID: {0}", accept.IDp);
+            return new Accepted() { IDp = -1 };
+        }
         //Console.WriteLine("(Acceptor):Paxos accept received with IDp: {0}", accept.IDp);
         Accepted accepted = new Accepted();
         // Did it promise to ignore requests with this ID?

@@ -87,7 +87,7 @@ class Program
         var behaviorTMs = string.Join("", parts, 2, numTMs);
         var numLMs = config.LeaseManagers.Count;
         var behaviorLMs = string.Join("", parts, 2 + numTMs, numLMs);
-        var suspects = string.Join("" , parts, 2 + numTMs + numLMs, parts.Length - 2 - numTMs - numLMs);
+        var suspects = string.Join("+" , parts, 2 + numTMs + numLMs, parts.Length - 2 - numTMs - numLMs);
         var slotBehavior = $"{slot}#{behaviorTMs}#{behaviorLMs}#{suspects}";
         config.SlotBehaviors.Add(slotBehavior);
     }

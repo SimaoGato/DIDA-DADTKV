@@ -32,6 +32,7 @@ class Program
         _numberOfLm = lmConfig.numberOfLm;
         _lmIdsMap = lmConfig.lmIdsMap;
         Dictionary<string, string> lmServers = lmConfig.lmServers;
+        Suspects.SetMaps(_lmIdsMap);
         _numberOfTm = lmConfig.numberOfTm;
         _tmIdsMap = lmConfig.tmIdsMap;
         Dictionary<string, string> tmServers = lmConfig.tmServers;
@@ -40,7 +41,7 @@ class Program
         _slotDuration = lmConfig.slotDuration;
         _startTime = lmConfig.startTime;
         _lmService = new LeaseManagerService(tmServers);
-        _acceptor = new Acceptor(_lmService);
+        _acceptor = new Acceptor(_lmId, _numberOfLm, _lmService);
         _proposer = new Proposer(_lmId, _numberOfLm, lmServers, _acceptor);
         
         var lmUri = new Uri(_lmUrl);
@@ -121,6 +122,7 @@ class Program
 
     private bool CheckCrashes(int round)
     {
+        Suspects.ResetSuspects();
         Console.WriteLine("[Checking Crashes...]");
         if (!_slotBehaviors.ContainsKey(round))
         {
@@ -156,6 +158,22 @@ class Program
                 _proposer.RemoveNode(nick, i);
                 _lmIdsMap.Remove(i);
             }    
+        }
+
+        if (behaviors.Count == 3) // There are suspects
+        {
+            string[] suspectStatus = behaviors[2].Split("+");
+            foreach (var pair in suspectStatus)
+            {
+                string trimedPair = pair.TrimStart('(').TrimEnd(')');
+                string[] ids = trimedPair.Split(",");
+
+                if (ids[0] == _lmNick)
+                {
+                    Console.WriteLine("I suspect this server: " + ids[1]);
+                    Suspects.SetSuspected(ids[1]);
+                }
+            }
         }
         
         return false;
