@@ -9,6 +9,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
     private int _leaderID = -1; 
     private int _IDp = -1;
     private int _IDa = -1;
+    private bool _commited = false;
     private List<List<string>> _value = new List<List<string>>();
     private readonly LeaseManagerService _leaseManagerService;
     
@@ -84,7 +85,11 @@ public class Acceptor : PaxosService.PaxosServiceBase
             accepted.IDp = _IDp;
             SetAcceptedValue(accepted);
             Console.WriteLine("(Acceptor): Value accepted: {0} from IDp: {1}", PrintLease(_value), _IDp);
-            _leaseManagerService.SendLeases(_value);
+            if (!_commited)
+            {
+                _leaseManagerService.SendLeases(_value);
+                _commited = true;
+            }
         }
         
         return accepted;
@@ -126,6 +131,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
     {
         _IDp = -1;
         _IDa = -1;
+        _commited = false;
         _value.Clear();
     }
     

@@ -13,7 +13,6 @@ public class Proposer
     private readonly Acceptor _acceptor;
     private int _leaderId;
     private int _timeout = 1;
-    private bool _secondPhase = true;
 
     public List<List<string>> Value
     {
@@ -76,21 +75,19 @@ public class Proposer
                 {
                     _value = UpdateValue(promise); // Yes, update value
                     _IDa = promise.IDa; 
-                    _secondPhase = false; // No need to go to phase 2
                     //Console.WriteLine("(Proposer):Value has changed: {0}", PrintLease(_value));
                 }
             }
         }
         
         // Did it receive promises from a majority?
-        if ((count > _nServers / 2) && _secondPhase)
+        if (count > _nServers / 2)
         {
             _timeout = 1;
-            _secondPhase = false; // set to false to avoid two tasks doing the same phase 2
             Console.WriteLine("(Proposer): I got majority, go to Phase 2 with value: {0}", PrintLease(_value));
             PhaseTwo(); // Yes, go to phase 2
         }
-        else if (_secondPhase)
+        else
         {
             // Retry again with higher ID 
             _IDp += _nServers;
@@ -100,10 +97,6 @@ public class Proposer
             _timeout *= 2;
             Console.WriteLine("(Proposer): Retrying Prepare with new ID: {0}", _IDp);
             PhaseOne();
-        }
-        else if (count > _nServers / 2)
-        {
-            Console.WriteLine("(Proposer): I am the new leader with ID: {0}, but the VALUE is: {1}, from IDA: {2}", _IDp, PrintLease(_value), _IDa);
         }
     }
 
@@ -196,7 +189,6 @@ public class Proposer
     {
         _leaderId = _acceptor.LeaderID;
         _IDa = -1;
-        _secondPhase = true; // Reset second phase
         _value.Clear();
     }
 
