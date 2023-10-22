@@ -50,11 +50,36 @@ class Program
 
             var transactionManagerService = new TransactionManagerService(lmServers);
 
-            Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, tmUri.Port, lmServers.Count);
+            SharedContext sharedContext = new SharedContext();
+
+            LeaseManagerServiceImpl lmServiceImpl =
+                new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count, sharedContext);
+
+            Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, 
+                tmUri.Port, lmServers.Count, sharedContext, lmServiceImpl);
 
             server.Start();
 
             Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
+            
+            // while dont reach the number of time slots
+            // wait for a signal to execute transactions
+            // when the signal is received, execute transactions
+            // when transactions are executed, go back to waiting for signal
+            var i = 0;
+            while (i < timeSlots)
+            {
+                Console.WriteLine($"[TransactionManager] slot {i} - {tmNick} waiting for signal to start transactions");
+                sharedContext.LeaseSignal.WaitOne();
+                Console.WriteLine($"[TransactionManager] {tmNick} received signal to start transactions");
+                var numOfTransactions = sharedContext.ExecuteTransactions(tmState.GetLeasesPerLeaseManager().First());
+                Console.WriteLine($"[TransactionManager] {tmNick} finished {numOfTransactions} transactions");
+                lmServiceImpl.SetSignalingTaskId(0);
+                //sharedContext.LeaseSignal.Reset();
+                tmState.ClearLeasesPerLeaseManager();
+                i++;
+            }
+            
             Console.WriteLine("Press any key to stop...");
             Console.ReadKey();
 
@@ -70,16 +95,17 @@ class Program
     }
 
     private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService,
-        TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm)
+        TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm, 
+        SharedContext sharedContext, LeaseManagerServiceImpl lmServiceImpl)
     {
-        SharedContext sharedContext = new SharedContext();
+        
         return new Server
         {
             Services =
             {
                 ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState, sharedContext)),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
-                LeaseResponseService.BindService(new LeaseManagerServiceImpl(tmNick, tmState, numberOfLm, sharedContext))
+                LeaseResponseService.BindService(lmServiceImpl)
             },
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };

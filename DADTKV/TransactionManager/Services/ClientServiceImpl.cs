@@ -26,30 +26,36 @@ namespace TransactionManager
 
         private TransactionResponse DoTransaction(TransactionRequest request)
         {
-            string clientId = request.ClientId;
-            List<string> objectsRequested = new List<string>();
-
-            // Combine objects to read and objects to write into a single list
-            objectsRequested.AddRange(request.ObjectsToRead.Select(item => item));
-            objectsRequested.AddRange(request.ObjectsToWrite.Select(item => item.Key));
-            
-            Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
-
-            // Request a lease for the objects
-            Console.WriteLine("{0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
-            
-            
-            Console.WriteLine("[ClientServiceImpl] {0} waiting for lease signal", _transactionManagerId);
-            // Wait for signal
-            _sharedContext.LeaseSignal.WaitOne();
-            Console.WriteLine("[ClientServiceImpl] {0} lease signal received", _transactionManagerId);
-            
-            _sharedContext.LeaseSignal.Reset();
-
-            List<DadInt> responseDadIntList = new List<DadInt>();
-
-            lock (_lock)
+            try
             {
+                string clientId = request.ClientId;
+                List<string> objectsRequested = new List<string>();
+                // random unique transaction id
+                var uniqueTransactionId = clientId + "-" + System.Guid.NewGuid().ToString();
+
+                // Combine unique transaction id, objects to read and objects to write into a single list
+                objectsRequested.Add(uniqueTransactionId);
+                objectsRequested.AddRange(request.ObjectsToRead.Select(item => item));
+                objectsRequested.AddRange(request.ObjectsToWrite.Select(item => item.Key));
+
+                Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
+
+                // Request a lease for the objects
+                //Console.WriteLine("{0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
+                _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
+
+                Console.WriteLine("[ClientServiceImpl] {0} waiting for lease signal", clientId);
+                // Wait for signal
+                //_sharedContext.LeaseSignal.WaitOne();
+                _sharedContext.TransactionSignal(uniqueTransactionId).WaitOne();
+                Console.WriteLine("[ClientServiceImpl] {0} lease signal received", clientId);
+
+                //_sharedContext.LeaseSignal.Reset();
+
+                List<DadInt> responseDadIntList = new List<DadInt>();
+
+                //lock (_lock)
+                //{
                 // Read objects
                 foreach (string dadIntKey in request.ObjectsToRead)
                 {
@@ -77,16 +83,33 @@ namespace TransactionManager
                     _transactionManagerState.WriteOperation(key, value);
                     // Console.WriteLine("Writing object: {0} with value {1}", key, value);
                 }
+                //}
+
+                Console.WriteLine("[ClientServiceImpl] Client {0} transaction completed", clientId);
+
+                TransactionResponse response = new TransactionResponse();
+                response.ObjectsRead.AddRange(responseDadIntList);
+
+                _sharedContext.RemoveTransactionSignal(uniqueTransactionId);
+
+                _sharedContext.SetSharedContextSignal();
+
+                Console.WriteLine("[ClientServiceImpl] Transaction response sent");
+
+                _sharedContext.SharedContextSignal.Reset();
+
+                return response;
             }
-            
-            Console.WriteLine("Transaction completed");
-
-            TransactionResponse response = new TransactionResponse();
-            response.ObjectsRead.AddRange(responseDadIntList);
-
-            return response;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error while executing transaction: {ex.Message}");
+                return new TransactionResponse
+                {
+                    ObjectsRead = { },
+                    
+                };
+            }
         }
-
     }
 }
 

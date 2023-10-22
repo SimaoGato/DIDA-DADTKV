@@ -75,6 +75,7 @@ namespace TransactionManager
         public void ClearLeasesPerLeaseManager()
         {
             _leasesPerLeaseManager.Clear();
+            Console.WriteLine($"[TransactionManagerState] cleared leasesPerLeaseManager");
         }
     }
 }
