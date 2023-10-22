@@ -4,38 +4,24 @@ namespace LeaseManager.Paxos;
 
 public class Acceptor : PaxosService.PaxosServiceBase
 {
-    private int _lmId;
-    private int _nServers;
+    private readonly int _lmId;
+    private readonly int _nServers;
     private int _leaderID = -1; 
     private int _IDp = -1;
     private int _IDa = -1;
     private List<List<string>> _value = new List<List<string>>();
-    private LeaseManagerService _leaseManagerService;
+    private readonly LeaseManagerService _leaseManagerService;
+    
+    public int LeaderID
+    {
+        get { return _leaderID;  }
+    }
     
     public Acceptor(int lmId, int nServers, LeaseManagerService leaseManagerService)
     {
         _lmId = lmId;
         _leaseManagerService = leaseManagerService;
         _nServers = nServers;
-    }
-
-    public int LeaderID
-    {
-        get { return _leaderID;  }
-        set { _leaderID = value;}
-    }
-    
-    public List<List<string>> Value
-    {
-        get { return _value;  }
-        set { _value = value;}
-    }
-    
-    public void PrepareForNextEpoch()
-    {
-        _IDp = -1;
-        _IDa = -1;
-        _value.Clear();
     }
     
     public override Task<Promise> PaxosPhaseOne(Prepare prepare, ServerCallContext context)
@@ -53,43 +39,25 @@ public class Acceptor : PaxosService.PaxosServiceBase
         // Ignore calls of suspects
         if ((prepare.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(prepare.IDp % _nServers)))
         {
-            Console.WriteLine("(Acceptor): I am ignoring a prepare call from ID: {0}", prepare.IDp);
+            Console.WriteLine("(Acceptor): I am ignoring a Prepare call from ID: {0}", prepare.IDp);
             return new Promise() { IDp = -1 };
         }
         
-        //Console.WriteLine("(Acceptor):Paxos prepare received with IDp: {0}", prepare.IDp);
         Promise promise = new Promise();
         
         // Did it promise to ignore requests with this ID?
         if (prepare.IDp < _IDp)
         {
             promise.IDp = -1; // Ignore request
-            //Console.WriteLine("(Acceptor):IGNORE, Prev Accepted ID: {0}", _IDp);
         }
         else // Will promise to ignore request with lower Id
         {
             _IDp = prepare.IDp;
-            // Has it ever accepted anything?
-            if (_IDa == -1) // No
-            {
-                //Console.WriteLine("(Acceptor):Didn't accepted anything");
-            }
-            else // Yes
-            {
-                //Console.WriteLine("(Acceptor):Acceptor has already accepted something IDa: {0} Value: {1}", _IDa, PrintLease(_value));
-            }
             promise.IDp = _IDp;
             _leaderID = _IDp; // Now it responds to a new leader
         }
         promise.IDa = _IDa;
-        foreach (var leaseAux in _value)
-        {
-            Lease lease = new Lease();
-            lease.Value.AddRange(leaseAux);
-            promise.Value.Add(lease);
-        }
-        
-        //Console.WriteLine("(Acceptor):Paxos promise {0} to IDp:{1}", promise.IDp, prepare.IDp);
+        SetPromiseValue(promise);
         return promise;
     }
     
@@ -97,43 +65,68 @@ public class Acceptor : PaxosService.PaxosServiceBase
     {
         if ((accept.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(accept.IDp % _nServers)))
         {
-            Console.WriteLine("(Acceptor): I am ignoring a accept call from ID: {0}", accept.IDp);
+            Console.WriteLine("(Acceptor): I am ignoring an Accept call from ID: {0}", accept.IDp);
             return new Accepted() { IDp = -1 };
         }
-        //Console.WriteLine("(Acceptor):Paxos accept received with IDp: {0}", accept.IDp);
+        
         Accepted accepted = new Accepted();
+        
         // Did it promise to ignore requests with this ID?
         if (accept.IDp < _IDp)
         {
             accepted.IDp = -1; // Ignore request
-            //Console.WriteLine("Ignore request of IDp: {0}", accept.IDp);
         }
         else // Reply with accept Id and value 
         {
             _IDp = accept.IDp;
             _IDa = _IDp;
-            
-            List<List<string>> auxLease = new List<List<string>>();
-            foreach (Lease lease in accept.Value)
-            {
-                List<string> list = new List<string>(lease.Value);
-                auxLease.Add(list);
-            }
-            _value = auxLease;
-            
+            _value = UpdateValue(accept);
             accepted.IDp = _IDp;
-            foreach (var leaseAux in _value)
-            {
-                Lease lease = new Lease();
-                lease.Value.AddRange(leaseAux);
-                accepted.Value.Add(lease);
-            }
-            
-            Console.WriteLine("(Acceptor):Value accepted: {0} from IDp: {1}", PrintLease(_value), _IDp);
+            SetAcceptedValue(accepted);
+            Console.WriteLine("(Acceptor): Value accepted: {0} from IDp: {1}", PrintLease(_value), _IDp);
             _leaseManagerService.SendLeases(_value);
         }
         
         return accepted;
+    }
+    
+    private void SetPromiseValue(Promise promise)
+    {
+        foreach (var leaseAux in _value)
+        {
+            Lease lease = new Lease();
+            lease.Value.AddRange(leaseAux);
+            promise.Value.Add(lease);
+        }
+    }
+
+    private static List<List<string>> UpdateValue(Accept accept)
+    {
+        List<List<string>> auxLease = new List<List<string>>();
+        foreach (Lease lease in accept.Value)
+        {
+            List<string> list = new List<string>(lease.Value);
+            auxLease.Add(list);
+        }
+
+        return auxLease;
+    }
+
+    private void SetAcceptedValue(Accepted accepted)
+    {
+        foreach (var leaseAux in _value)
+        {
+            Lease lease = new Lease();
+            lease.Value.AddRange(leaseAux);
+            accepted.Value.Add(lease);
+        }
+    }
+    
+    public void PrepareForNextEpoch()
+    {
+        _IDp = -1;
+        _IDa = -1;
+        _value.Clear();
     }
     
     private static string PrintLease(List<List<string>> value)

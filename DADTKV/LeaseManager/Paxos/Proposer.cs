@@ -4,13 +4,13 @@ namespace LeaseManager.Paxos;
 
 public class Proposer
 {
-    private Dictionary<string, GrpcChannel> _channels;
-    private Dictionary<string, PaxosService.PaxosServiceClient> _stubs;
+    private readonly Dictionary<string, GrpcChannel> _channels;
+    private readonly Dictionary<string, PaxosService.PaxosServiceClient> _stubs;
     private int _IDp; 
     private int _IDa = -1;
     private List<List<string>> _value = new List<List<string>>();
-    private int _nServers;
-    private Acceptor _acceptor;
+    private readonly int _nServers;
+    private readonly Acceptor _acceptor;
     private int _leaderId;
     private int _timeout = 1;
     private bool _secondPhase = true;
@@ -18,15 +18,6 @@ public class Proposer
     public List<List<string>> Value
     {
         get { return _value; }
-        set { _value = value; }
-    }
-    
-    public void PrepareForNextEpoch()
-    {
-        _leaderId = _acceptor.LeaderID;
-        _IDa = -1;
-        _secondPhase = true; // Reset second phase
-        _value.Clear();
     }
   
     public Proposer(int iDp, int nServers,  Dictionary<string, string> servers, Acceptor acceptor)
@@ -48,8 +39,6 @@ public class Proposer
 
     public void StartPaxos()
     {
-        Console.WriteLine("Leader's ID: {0} from LM: {1}", _leaderId, (_leaderId % _nServers));
-        
         // If there is no leader, start with phase 1
         if (_leaderId == -1)
         {
@@ -65,99 +54,116 @@ public class Proposer
 
     public async void PhaseOne()
     {
-        Console.WriteLine("Phase One");
+        Console.WriteLine("(Proposer): Phase One");
         // Want to propose a value, send prepare ID
-        var prepare = new Prepare
-        {
-            IDp = _IDp
-        };
-        
-        List<Task<Promise>> sendTasks = new List<Task<Promise>>();
-        sendTasks.Add(Task.Run(() => _acceptor.DoPhaseOne(prepare)));
-        foreach (var stub in _stubs)
-        {
-            if (!Suspects.IsSuspected(stub.Key))
-            {
-                sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseOne(prepare)));
-            }
-        }
+        var prepare = new Prepare { IDp = _IDp };
+
+        List<Task<Promise>> sendTasks = SendPrepare(prepare);
 
         int count = 0;
         while (count <= _nServers / 2 && sendTasks.Count > 0)
         {
-            //Console.WriteLine("COUNT: {0}", count);
             Task<Promise> completedTask = await Task.WhenAny(sendTasks);
             sendTasks.Remove(completedTask);
-            
             Promise promise = await completedTask;
-            //Console.WriteLine("(Proposer):Promise received with IDp: {0}", promise.IDp);
             
             // Received a promise (with its ID)?
             if (promise.IDp == _IDp) // Yes, update count
             {
                 count++;
                 // Did it receive Promise _IDp accepted IDa, value?
-                // It needs to update the _value with the Highest IDa (PreviousAcceptedID) that it got
                 if (promise.IDa != -1 && (promise.IDa > _IDa)) 
                 {
-                    List<List<string>> auxLease = new List<List<string>>();
-                    foreach (Lease lease in promise.Value)
-                    {
-                        List<string> list = new List<string>(lease.Value);
-                        auxLease.Add(list);
-                    }
-                    _value = auxLease; // Yes, update value
+                    _value = UpdateValue(promise); // Yes, update value
                     _IDa = promise.IDa; 
                     _secondPhase = false; // No need to go to phase 2
                     //Console.WriteLine("(Proposer):Value has changed: {0}", PrintLease(_value));
                 }
             }
         }
-        //Console.WriteLine("(Proposer):Count: {0} | nServers: {1} | Value: {2}", count, _nServers, PrintLease(_value));
         
         // Did it receive promises from a majority?
         if ((count > _nServers / 2) && _secondPhase)
         {
             _timeout = 1;
-            _secondPhase = false; // TODO: [CHECK] this is here in case that a slow task tries to do phase 2 after the proposer is already doing it
-            Console.WriteLine("(Proposer):GO TO PAXOS PHASE 2 with value: {0}", PrintLease(_value));
+            _secondPhase = false; // set to false to avoid two tasks doing the same phase 2
+            Console.WriteLine("(Proposer): I got majority, go to Phase 2 with value: {0}", PrintLease(_value));
             PhaseTwo(); // Yes, go to phase 2
         }
         else if (_secondPhase)
         {
             // Retry again with higher ID 
             _IDp += _nServers;
-            
             // Timeout to avoid live lock
-            Console.WriteLine("(Proposer):Wait Timeout: {0}", _timeout);
-            
+            Console.WriteLine("(Proposer): Wait Timeout: {0}", _timeout);
             Thread.Sleep(_timeout * 1000); 
             _timeout *= 2;
-            //Console.WriteLine("(Proposer):Retrying prepare with new ID: {0}", _IDp);
+            Console.WriteLine("(Proposer): Retrying Prepare with new ID: {0}", _IDp);
             PhaseOne();
         }
-        else
+        else if (count > _nServers / 2)
         {
-            Console.WriteLine("(P: NEW LEADER): With ID: {0}, the VALUE is: {1}, from IDA: {2}", _IDp, PrintLease(_value), _IDa);
+            Console.WriteLine("(Proposer): I am the new leader with ID: {0}, but the VALUE is: {1}, from IDA: {2}", _IDp, PrintLease(_value), _IDa);
         }
     }
 
     private async void PhaseTwo()
     {
-        //Console.WriteLine("PHASE TWO 2 TIMEOUT: {0}", _timeout);
-        //Console.WriteLine("(Proposer):PhaseTwo Value: {0}", PrintLease(_value));
-        var accept = new Accept
+        Accept accept = SetValue();
+        List<Task<Accepted>> sendTasks = SendAccept(accept);
+        
+        int count = 0;
+        while (count <= _nServers / 2 && sendTasks.Count > 0)
         {
-            IDp = _IDp,
-        };
-
-        foreach (var leaseAux in _value)
-        {
-            Lease lease = new Lease();
-            lease.Value.AddRange(leaseAux);
-            accept.Value.Add(lease);
+            Task<Accepted> completedTask = await Task.WhenAny(sendTasks);
+            sendTasks.Remove(completedTask);
+            Accepted accepted = await completedTask;
+            
+            // Confirmation of acceptance ?
+            if (accepted.IDp == _IDp) count++; // Yes
         }
         
+        // Check majority
+        if (count > _nServers / 2)
+        {
+            Console.WriteLine("(Proposer): !! Finish Paxos with value: {0} (my id: {1})", PrintLease(_value), _IDp); 
+        }
+        else
+        {
+            Console.WriteLine("(Proposer): Didn't achieve majority in Phase 2, count: {0}", count);
+        }
+    }
+
+    private List<Task<Promise>> SendPrepare(Prepare prepare)
+    {
+        List<Task<Promise>> sendTasks = new List<Task<Promise>>();
+        sendTasks.Add(Task.Run(() => _acceptor.DoPhaseOne(prepare)));
+        foreach (var stub in _stubs)
+        {
+            if (!Suspects.IsSuspected(stub.Key))
+            {
+                Console.WriteLine("(Proposer): Sending prepare to: {0}", stub.Key);
+                sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseOne(prepare)));
+            }
+        }
+
+        return sendTasks;
+    }
+
+    private static List<List<string>> UpdateValue(Promise promise)
+    {
+        List<List<string>> auxLease = new List<List<string>>();
+        foreach (Lease lease in promise.Value)
+        {
+            List<string> list = new List<string>(lease.Value);
+            auxLease.Add(list);
+        }
+        
+        return auxLease;
+    }
+
+    private List<Task<Accepted>> SendAccept(Accept accept)
+    {
         List<Task<Accepted>> sendTasks = new List<Task<Accepted>>();
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseTwo(accept)));
         foreach (var stub in _stubs)
@@ -169,30 +175,29 @@ public class Proposer
             }
         }
 
-        int count = 0;
-        while (count <= _nServers / 2 && sendTasks.Count > 0)
-        {
-            Task<Accepted> completedTask = await Task.WhenAny(sendTasks);
-            sendTasks.Remove(completedTask);
-            
-            Accepted accepted = await completedTask;
-            
-            // Confirmation of acceptance ?
-            if (accepted.IDp == _IDp) // Yes
-            {
-                count++;
-            }
-        }
+        return sendTasks;
+    }
+
+    private Accept SetValue()
+    {
+        var accept = new Accept { IDp = _IDp };
         
-        // Check majority
-        if (count > _nServers / 2)
+        foreach (var leaseAux in _value)
         {
-            Console.WriteLine("(Proposer):FINISH PAXOS WITH VALUE: {0} (my id: {1})", PrintLease(_value), _IDp); 
+            Lease lease = new Lease();
+            lease.Value.AddRange(leaseAux);
+            accept.Value.Add(lease);
         }
-        else
-        {
-            Console.WriteLine("(Proposer): DIDN'T ACHIEVED MAJORITY");
-        }
+
+        return accept;
+    }
+    
+    public void PrepareForNextEpoch()
+    {
+        _leaderId = _acceptor.LeaderID;
+        _IDa = -1;
+        _secondPhase = true; // Reset second phase
+        _value.Clear();
     }
 
     private static string PrintLease(List<List<string>> value)

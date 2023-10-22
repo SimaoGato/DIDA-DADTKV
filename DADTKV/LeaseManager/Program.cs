@@ -91,7 +91,8 @@ class Program
                 {
                     slotTimer.Stop();
                     // TODO: Do automatic shutdown (?)
-                    Console.WriteLine("[ENDING...]");
+                    Console.WriteLine();
+                    Console.WriteLine("[ENDING PROGRAM...]");
                     Console.WriteLine("Press any key to close...");
                 }
                 timerFinished.Set();
@@ -100,7 +101,7 @@ class Program
         slotTimer.AutoReset = true;
         slotTimer.Start();
         
-        Console.WriteLine("Press any key to stop...");
+        Console.WriteLine("(LM): Press any key to stop...");
         Console.ReadKey();
         program.ShutDown();
     }
@@ -108,8 +109,9 @@ class Program
     private void Paxos()
     {
         _proposer.Value.AddRange(_lmState.RequestedLeases);
-        Console.WriteLine("[Starting Multi-Paxos...]");
-        _proposer.StartPaxos();
+        Console.WriteLine("(LM): Starting Paxos...");
+        _proposer.PhaseOne();
+        Console.WriteLine("(LM): Paxos has Finished");
         _lmState.CleanRequestedLeases();
     }
 
@@ -123,10 +125,10 @@ class Program
     private bool CheckCrashes(int round)
     {
         Suspects.ResetSuspects();
-        Console.WriteLine("[Checking Crashes...]");
+        Console.WriteLine("(LM): Checking Crashes...");
         if (!_slotBehaviors.ContainsKey(round))
         {
-            Console.WriteLine("No behavior change for this round");
+            Console.WriteLine("(LM): No behavior change for this round");
             return false;
         }
         
@@ -136,7 +138,7 @@ class Program
         {
             if (tmStatus[i] == 'C' && _tmIdsMap.ContainsKey(i))
             {
-                Console.WriteLine("Need to close connection to TM: " + i);
+                Console.WriteLine("(LM): Need to close connection to TM: " + i);
                 string nick = _tmIdsMap[i];
                 _lmService.RemoveStub(nick);
                 _tmIdsMap.Remove(i);
@@ -146,14 +148,14 @@ class Program
         string lmStatus = behaviors[1];
         if (lmStatus[_lmId] == 'C')
         {
-            Console.WriteLine("I am crashing... my ID: " + _lmId);
+            Console.WriteLine("(LM): I am crashing... my ID: " + _lmId);
             return true;
         }
         for (int i = 0; i < lmStatus.Length; i++)
         {
             if (lmStatus[i] == 'C' && _lmIdsMap.ContainsKey(i))
             {
-                Console.WriteLine("Need to close connection to LM: " + i);
+                Console.WriteLine("(LM): Need to close connection to LM: " + i);
                 string nick = _lmIdsMap[i];
                 _proposer.RemoveNode(nick, i);
                 _lmIdsMap.Remove(i);
@@ -170,7 +172,7 @@ class Program
 
                 if (ids[0] == _lmNick)
                 {
-                    Console.WriteLine("I suspect this server: " + ids[1]);
+                    Console.WriteLine("(LM): I suspect this server: " + ids[1]);
                     Suspects.SetSuspected(ids[1]);
                 }
             }
