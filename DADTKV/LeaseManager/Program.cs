@@ -85,6 +85,8 @@ class Program
                 {
                     // TODO: Maybe call paxos only if we have a majority (?)
                     program.Paxos();
+                    Console.WriteLine("[ROUND FINISHED]");
+                    Console.WriteLine();
                 }
                 round++;
                 if ((round > program._timeSlots) || isCrashed)
@@ -110,7 +112,7 @@ class Program
     {
         _proposer.Value.AddRange(_lmState.RequestedLeases);
         Console.WriteLine("(LM): Starting Paxos...");
-        _proposer.PhaseOne();
+        _proposer.StartPaxos();
         Console.WriteLine("(LM): Paxos has Finished");
         _lmState.CleanRequestedLeases();
     }

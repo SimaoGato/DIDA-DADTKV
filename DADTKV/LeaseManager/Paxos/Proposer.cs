@@ -38,20 +38,22 @@ public class Proposer
 
     public void StartPaxos()
     {
-        // If there is no leader, start with phase 1
-        if (_leaderId == -1)
-        {
-            //Console.WriteLine("START WITH PHASE ONE 1");
-            PhaseOne();
-        }
-        else if (_IDp == _leaderId) // Multi-Paxos
-        {
-            //Console.WriteLine("START WITH PHASE ONE 2");
-            PhaseTwo();
-        }
+        Task t = PhaseOne();
+        t.Wait();
+        // // If there is no leader, start with phase 1
+        // if (_leaderId == -1)
+        // {
+        //     //Console.WriteLine("START WITH PHASE ONE 1");
+        //     PhaseOne();
+        // }
+        // else if (_IDp == _leaderId) // Multi-Paxos
+        // {
+        //     //Console.WriteLine("START WITH PHASE ONE 2");
+        //     PhaseTwo();
+        // }
     }
 
-    public async void PhaseOne()
+    public async Task PhaseOne()
     {
         Console.WriteLine("(Proposer): Phase One");
         // Want to propose a value, send prepare ID
@@ -85,7 +87,8 @@ public class Proposer
         {
             _timeout = 1;
             Console.WriteLine("(Proposer): I got majority, go to Phase 2 with value: {0}", PrintLease(_value));
-            PhaseTwo(); // Yes, go to phase 2
+            Task t = PhaseTwo(); // Yes, go to phase 2
+            t.Wait();
         }
         else
         {
@@ -96,11 +99,12 @@ public class Proposer
             Thread.Sleep(_timeout * 1000); 
             _timeout *= 2;
             Console.WriteLine("(Proposer): Retrying Prepare with new ID: {0}", _IDp);
-            PhaseOne();
+            Task t = PhaseOne();
+            t.Wait();
         }
     }
 
-    private async void PhaseTwo()
+    private async Task PhaseTwo()
     {
         Accept accept = SetValue();
         List<Task<Accepted>> sendTasks = SendAccept(accept);
@@ -197,12 +201,13 @@ public class Proposer
         string result = "";
         foreach (var lease in value)
         {
-            string leaseAux = "";
-            foreach (var str in lease)
-            {
-                leaseAux = leaseAux + " " + str;
-            }
-            result = result + leaseAux + " | ";
+            // string leaseAux = "";
+            // foreach (var str in lease)
+            // {
+            //     leaseAux = leaseAux + " " + str;
+            // }
+            // result = result + leaseAux + " | ";
+            result = result + lease[0] + " | ";
         }
 
         return result;

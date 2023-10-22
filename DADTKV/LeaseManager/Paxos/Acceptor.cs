@@ -140,12 +140,13 @@ public class Acceptor : PaxosService.PaxosServiceBase
         string result = "";
         foreach (var lease in value)
         {
-            string leaseAux = "";
-            foreach (var str in lease)
-            {
-                leaseAux = leaseAux + " " + str;
-            }
-            result = result + leaseAux + " | ";
+            // string leaseAux = "";
+            // foreach (var str in lease)
+            // {
+            //     leaseAux = leaseAux + " " + str;
+            // }
+            // result = result + leaseAux + " | ";
+            result = result + lease[0] + " | ";
         }
     
         return result;
