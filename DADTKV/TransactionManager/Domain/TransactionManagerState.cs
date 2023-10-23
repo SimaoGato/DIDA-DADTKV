@@ -10,45 +10,76 @@ namespace TransactionManager
 
         public void WriteOperation(string key, long value)
         {
-            try
+            lock (_dataStorage)
             {
-                _dataStorage[key] = value;
+                try
+                {
+                    // Console transaction that is being made
+                    //Console.WriteLine($"[TransactionManagerState] Writing object: {key} with value {value}");
+                    _dataStorage[key] = value;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error writing data for key '{key}': {ex.Message}");
+                }
             }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error writing data for key '{key}': {ex.Message}");
-            }
+
         }
 
         public long ReadOperation(string key)
         {
-            try
+            lock (_dataStorage)
             {
-                if (_dataStorage.TryGetValue(key, out var value))
+                try
                 {
-                    return value;
+                    if (_dataStorage.TryGetValue(key, out var value))
+                    {
+                        return value;
+                    }
+                    throw new KeyNotFoundException($"Key '{key}' not found in data storage.");
                 }
-                throw new KeyNotFoundException($"Key '{key}' not found in data storage.");
+                catch (KeyNotFoundException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error reading data for key '{key}': {ex.Message}");
+                }    
             }
-            catch (KeyNotFoundException)
+        }
+        
+        public void PrintObjects()
+        {
+            lock (_dataStorage)
             {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error reading data for key '{key}': {ex.Message}");
+                try
+                {
+                    Console.WriteLine("[TransactionManagerState] Objects in data storage:");
+                    foreach (var key in _dataStorage.Keys)
+                    {
+                        Console.WriteLine($"[TransactionManagerState] Key: {key}, Value: {_dataStorage[key]}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error printing objects: {ex.Message}");
+                }    
             }
         }
 
         public bool ContainsKey(string key)
         {
-            try
+            lock (_dataStorage)
             {
-                return _dataStorage.ContainsKey(key);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error checking if key '{key}' exists: {ex.Message}");
+                try
+                {
+                    return _dataStorage.ContainsKey(key);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error checking if key '{key}' exists: {ex.Message}");
+                }   
             }
         }
 

@@ -43,8 +43,9 @@ namespace TransactionManager
         {
             try
             {
-                Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} received leases");
+                Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} received leases AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
                 var response = DoSendLeases(request);
+                Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} received leases BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
                 return Task.FromResult(response);
             }
             catch (Exception ex)
@@ -62,26 +63,33 @@ namespace TransactionManager
         {
             try
             {
-                var leases = request.Leases.Select(lease => lease.Value.ToList()).ToList();
-                _transactionManagerState.ReceiveLeases(leases);
-                Console.WriteLine($"COUNT LEASES: {_transactionManagerState.GetLeasesPerLeaseManager().Count}");
-                if (_transactionManagerState.GetLeasesPerLeaseManager().Count == _numberOfLeaseManagers) {
-                    Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} received all leases");
-                    lock (this) {
-                        // print signaallingTaskId 
-                        Console.WriteLine($"[LeaseManagerServiceImpl] {signalingTaskId}");
-                        if (signalingTaskId == 0) {
-                            Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} sending signal to proceed to next transaction");
-                            _sharedContext.SetLeaseSignal(); 
-                            signalingTaskId = 1;
-                            _sharedContext.LeaseSignal.Reset();
-                            Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} sent signal to proceed to next transaction");
-                        }
-                    }
+                lock (this)
+                {
+                    Console.WriteLine($"COUNT LEASES: {_transactionManagerState.GetLeasesPerLeaseManager().Count + 1}");
+                    var leases = request.Leases.Select(lease => lease.Value.ToList()).ToList();
+                    _transactionManagerState.ReceiveLeases(leases);
+                    //if (_transactionManagerState.GetLeasesPerLeaseManager().Count >= (_numberOfLeaseManagers / 2) + 1) {
+                    //Console.WriteLine($"[LeaseManagerServiceImpl] {_tmNick} received all leases");
+                    //lock (this) {
+                    // print signaallingTaskId 
+                    //Console.WriteLine($"[LeaseManagerServiceImpl] {signalingTaskId}");
+                    //if (!_sharedContext.ExecutingTransactions) {
+                        Console.WriteLine(
+                            $"[LeaseManagerServiceImpl] {_tmNick} sending signal: count {_transactionManagerState.GetLeasesPerLeaseManager().Count}");
+                        _sharedContext.SetLeaseSignal();
+                        //signalingTaskId++;
+                        _sharedContext.LeaseSignal.Reset();
+                        Console.WriteLine(
+                            $"[LeaseManagerServiceImpl] {_tmNick} sent signal: count {_transactionManagerState.GetLeasesPerLeaseManager().Count}");
+                    //}
+                    //}
+                    //}
+                    
+                    return new SendLeaseResponse
+                    {
+                        Ack = true,
+                    };
                 }
-                return new SendLeaseResponse {
-                    Ack = true, 
-                };
             }
             catch (Exception ex)
             {

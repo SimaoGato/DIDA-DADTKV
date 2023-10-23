@@ -11,7 +11,10 @@ public class LeaseManagerState
     
     public void AddLease(List<string> lease)
     {
-        _requestedLeases.Add(lease);
+        lock (this)
+        {
+            _requestedLeases.Add(lease);
+        }
     }
     
     public void CleanRequestedLeases()

@@ -41,8 +41,8 @@ namespace TransactionManager
                 Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
 
                 // Request a lease for the objects
-                //Console.WriteLine("{0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
-                _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
+                Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
+                //_transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
 
                 Console.WriteLine("[ClientServiceImpl] {0} waiting for lease signal", clientId);
                 // Wait for signal

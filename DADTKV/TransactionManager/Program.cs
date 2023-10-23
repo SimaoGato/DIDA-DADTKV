@@ -67,17 +67,28 @@ class Program
             // when the signal is received, execute transactions
             // when transactions are executed, go back to waiting for signal
             var i = 0;
+            var countLM = 0;
             while (i < timeSlots)
             {
+                
                 Console.WriteLine($"[TransactionManager] slot {i} - {tmNick} waiting for signal to start transactions");
-                sharedContext.LeaseSignal.WaitOne();
-                Console.WriteLine($"[TransactionManager] {tmNick} received signal to start transactions");
+                // while dont receive signal from majority of lease managers
+                while (countLM < lmServers.Count)
+                {
+                    Console.WriteLine($"[TransactionManager] {tmNick} waiting for all lease managers to send leases. " +
+                                      $"Has received {countLM} signals. Waiting for majority {(lmServers.Count / 2) + 1}");
+                    sharedContext.LeaseSignal.WaitOne();
+                    countLM++;
+                }
+                Console.WriteLine($"[TransactionManager] {tmNick} received enough signals ({countLM}) to start transactions");
+                // arrumar leases numa fila
                 var numOfTransactions = sharedContext.ExecuteTransactions(tmState.GetLeasesPerLeaseManager().First());
                 Console.WriteLine($"[TransactionManager] {tmNick} finished {numOfTransactions} transactions");
-                lmServiceImpl.SetSignalingTaskId(0);
-                //sharedContext.LeaseSignal.Reset();
-                tmState.ClearLeasesPerLeaseManager();
                 i++;
+                countLM = 0;
+                tmState.ClearLeasesPerLeaseManager();
+                // print every object in data storage
+                //tmState.PrintObjects();
             }
             
             Console.WriteLine("Press any key to stop...");
