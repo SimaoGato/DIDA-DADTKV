@@ -41,7 +41,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
         if ((prepare.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(prepare.IDp % _nServers)))
         {
             Console.WriteLine("(Acceptor): I am ignoring a Prepare call from ID: {0}", prepare.IDp);
-            return new Promise() { IDp = -1 };
+            return new Promise() { IDp = -2 };
         }
         
         Promise promise = new Promise();
@@ -67,7 +67,7 @@ public class Acceptor : PaxosService.PaxosServiceBase
         if ((accept.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(accept.IDp % _nServers)))
         {
             Console.WriteLine("(Acceptor): I am ignoring an Accept call from ID: {0}", accept.IDp);
-            return new Accepted() { IDp = -1 };
+            return new Accepted() { IDp = -2 };
         }
         
         Accepted accepted = new Accepted();
