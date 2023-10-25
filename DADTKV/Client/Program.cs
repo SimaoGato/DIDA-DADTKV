@@ -40,7 +40,8 @@ class Program
             return;
         }
 
-        ClientService clientService = new ClientService(_clientConfiguration.MainTmServer, _clientConfiguration.Servers);
+        ClientService clientService = new ClientService(_clientConfiguration.MainTmServer, _clientConfiguration.Servers, 
+                                                        _clientConfiguration.TmServers);
 
         if (!File.Exists(_clientConfiguration.ScriptPath))
         {
