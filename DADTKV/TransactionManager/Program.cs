@@ -93,9 +93,11 @@ class Program
 
             LeaseManagerServiceImpl lmServiceImpl =
                 new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count);
+            
+            ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState);
 
             ClientTxServiceImpl clientTxServiceImpl =
-                new ClientTxServiceImpl(tmNick, transactionManagerService, tmState);
+                new ClientTxServiceImpl(tmNick, transactionManagerService, tmState, clientRequestHandler);
 
             Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, 
                 tmUri.Port, lmServers.Count, lmServiceImpl, clientTxServiceImpl);
@@ -105,6 +107,10 @@ class Program
             var currentTimeslot = 1;
 
             Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
+
+            // Create a new thread and start the printing
+            Thread clientRequestHandlerThread = new Thread(clientRequestHandler.ProcessTransactions);
+            clientRequestHandlerThread.Start();
             
             TimeSpan timeToStart = startTime - DateTime.Now;
             int msToWait = (int)timeToStart.TotalMilliseconds;
@@ -214,18 +220,22 @@ class Program
             }
         }
         // print variable suspects
-        string[] suspectsGroups = suspects.Split('+');
-        foreach (var suspect in suspectsGroups)
+        if (suspects.Count() != 0)
         {
-            string[] suspectGroup = suspect.Split(',');
-            string sourceServer = suspectGroup[0].Substring(1);
-            string targetServer = suspectGroup[1].Substring(0, suspectGroup[1].Length - 1);
-            if (sourceServer == tmNick && tmNicks.Contains(targetServer))
+            string[] suspectsGroups = suspects.Split('+');
+            foreach (var suspect in suspectsGroups)
             {
-                Console.WriteLine($"Suspecting tm {targetServer}");
-                // someService.SuspectTransactionManager(tmNickMap[targetServer]);
+                string[] suspectGroup = suspect.Split(',');
+                string sourceServer = suspectGroup[0].Substring(1);
+                string targetServer = suspectGroup[1].Substring(0, suspectGroup[1].Length - 1);
+                if (sourceServer == tmNick && tmNicks.Contains(targetServer))
+                {
+                    Console.WriteLine($"Suspecting tm {targetServer}");
+                    // someService.SuspectTransactionManager(tmNickMap[targetServer]);
+                }
             }
         }
+
     }
     
     private void RemoveCrashedTransactionServer(int id)
