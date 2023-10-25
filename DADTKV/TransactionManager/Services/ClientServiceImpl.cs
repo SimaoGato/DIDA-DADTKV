@@ -48,19 +48,18 @@ namespace TransactionManager
             try
             {
                 string clientId = request.ClientId;
+                string uniqueTransactionId = clientId + "-" + System.Guid.NewGuid().ToString();
                 
                 Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
                 
                 List<string> objectsRequested = new List<string>();
-
+                objectsRequested.Add(uniqueTransactionId);
                 objectsRequested.AddRange(request.ObjectsToRead.Select(item => item));
                 objectsRequested.AddRange(request.ObjectsToWrite.Select(item => item.Key));
 
                 // Request a lease for the objects
                 //Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
                 _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
-                
-                string uniqueTransactionId = clientId + "-" + System.Guid.NewGuid().ToString();
                 
                 Request requestToPush = new Request(clientId, uniqueTransactionId);
                 

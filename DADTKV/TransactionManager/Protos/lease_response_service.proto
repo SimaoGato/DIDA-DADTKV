@@ -5,7 +5,8 @@ service LeaseResponseService {
 }
 
 message SendLeaseRequest {
-  repeated LeaseOrder leases = 1;
+  int32 round = 1;
+  repeated LeaseOrder leases = 2;
 }
 
 message SendLeaseResponse {
