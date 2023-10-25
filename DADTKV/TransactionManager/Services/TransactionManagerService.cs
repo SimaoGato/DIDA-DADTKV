@@ -6,8 +6,8 @@ namespace TransactionManager
 {
     public class TransactionManagerService
     {
-        private readonly List<GrpcChannel> _leaseManagersGrpcChannels = new List<GrpcChannel>();
-        private List<LeaseService.LeaseServiceClient> _leaseManagersStubs = new List<LeaseService.LeaseServiceClient>();
+        private readonly Dictionary<string, GrpcChannel> _leaseManagersGrpcChannels = new Dictionary<string, GrpcChannel>();
+        private Dictionary<string, LeaseService.LeaseServiceClient> _leaseManagersStubs = new Dictionary<string, LeaseService.LeaseServiceClient>();
 
         public TransactionManagerService(List<string> lmAddresses)
         {
@@ -16,8 +16,8 @@ namespace TransactionManager
                 try
                 {
                     var channel = GrpcChannel.ForAddress(lmAddress);
-                    _leaseManagersGrpcChannels.Add(channel);
-                    _leaseManagersStubs.Add(new LeaseService.LeaseServiceClient(channel));
+                    _leaseManagersGrpcChannels.Add(lmAddress, channel);
+                    _leaseManagersStubs.Add(lmAddress, new LeaseService.LeaseServiceClient(channel));
                 }
                 catch (Exception ex)
                 {
@@ -32,7 +32,7 @@ namespace TransactionManager
             {
                 try
                 {
-                    ch.ShutdownAsync().Wait();
+                    ch.Value.ShutdownAsync().Wait();
                 }
                 catch (Exception ex)
                 {
@@ -52,7 +52,8 @@ namespace TransactionManager
             {
                 try
                 {
-                    var response = lmStub.RequestLease(request);
+                    var response = lmStub.Value.RequestLease(request);
+                    //Console.WriteLine($"[TransactionManagerService] Response from lm {lmStub.Key}: {response.Ack}");
                     if (!response.Ack)
                     {
                         return false;
@@ -66,5 +67,13 @@ namespace TransactionManager
 
             return true;
         }
+        
+        public void RemoveLeaseManagerStub(string lmServerAddress)
+        {
+            _leaseManagersGrpcChannels[lmServerAddress].ShutdownAsync().Wait();
+            _leaseManagersGrpcChannels.Remove(lmServerAddress);
+            _leaseManagersStubs.Remove(lmServerAddress);
+        }
+        
     }
 }

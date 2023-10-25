@@ -8,20 +8,39 @@ namespace TransactionManager
         private readonly TransactionManagerService _transactionManagerService;
         private readonly TransactionManagerState _transactionManagerState;
         private readonly string _transactionManagerId;
-        private SharedContext _sharedContext;
+        private ClientRequestHandler _clientRequestHandler;
+        
+        public bool isUpdating { get; set; }
 
         public ClientTxServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, 
-            TransactionManagerState transactionManagerState, SharedContext sharedContext)
+            TransactionManagerState transactionManagerState, ClientRequestHandler clientRequestHandler)
         {
             _transactionManagerId = transactionManagerId;
             _transactionManagerService = transactionManagerService;
             _transactionManagerState = transactionManagerState;
-            _sharedContext = sharedContext;
+            isUpdating = false;
+            _clientRequestHandler = clientRequestHandler;
         }
 
         public override Task<TransactionResponse> TxSubmit(TransactionRequest request, ServerCallContext context)
         {
-            return Task.FromResult(DoTransaction(request));
+            if (!isUpdating)
+            {
+                return Task.FromResult(DoTransaction(request));
+            }
+            else
+            {
+                DadInt dadInt = new DadInt
+                {
+                    Key = "abort",
+                    Value = 1 // code for updating
+                };
+
+                TransactionResponse response = new TransactionResponse();
+                response.ObjectsRead.Add(dadInt);
+                
+                return Task.FromResult(response);
+            }
         }
 
         private TransactionResponse DoTransaction(TransactionRequest request)
@@ -29,48 +48,26 @@ namespace TransactionManager
             try
             {
                 string clientId = request.ClientId;
+                
+                Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
+                
                 List<string> objectsRequested = new List<string>();
-                // random unique transaction id
-                var uniqueTransactionId = clientId + "-" + System.Guid.NewGuid().ToString();
 
-                // Combine unique transaction id, objects to read and objects to write into a single list
-                objectsRequested.Add(uniqueTransactionId);
                 objectsRequested.AddRange(request.ObjectsToRead.Select(item => item));
                 objectsRequested.AddRange(request.ObjectsToWrite.Select(item => item.Key));
 
-                Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
-
                 // Request a lease for the objects
-                Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
-                //_transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
-
-                Console.WriteLine("[ClientServiceImpl] {0} waiting for lease signal", clientId);
-                // Wait for signal
-                //_sharedContext.LeaseSignal.WaitOne();
-                _sharedContext.TransactionSignal(uniqueTransactionId).WaitOne();
-                Console.WriteLine("[ClientServiceImpl] {0} lease signal received", clientId);
-
-                //_sharedContext.LeaseSignal.Reset();
-
-                List<DadInt> responseDadIntList = new List<DadInt>();
-
-                //lock (_lock)
-                //{
+                //Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
+                _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
+                
+                string uniqueTransactionId = clientId + "-" + System.Guid.NewGuid().ToString();
+                
+                Request requestToPush = new Request(clientId, uniqueTransactionId);
+                
                 // Read objects
                 foreach (string dadIntKey in request.ObjectsToRead)
                 {
-                    // Console.WriteLine("Reading object: {0}", dadIntKey);
-
-                    if (_transactionManagerState.ContainsKey(dadIntKey))
-                    {
-                        DadInt dadInt = new DadInt
-                        {
-                            Key = dadIntKey,
-                            Value = _transactionManagerState.ReadOperation(dadIntKey)
-                        };
-
-                        responseDadIntList.Add(dadInt);
-                    }
+                    requestToPush.AddObjectToRead(dadIntKey);
                 }
 
                 // Write objects
@@ -79,24 +76,20 @@ namespace TransactionManager
                     string key = dadInt.Key;
                     long value = dadInt.Value;
 
-                    objectsRequested.Add(key);
-                    _transactionManagerState.WriteOperation(key, value);
-                    // Console.WriteLine("Writing object: {0} with value {1}", key, value);
+                    requestToPush.AddObjectToWrite(key, value);
                 }
-                //}
-
-                Console.WriteLine("[ClientServiceImpl] Client {0} transaction completed", clientId);
-
+                
+                requestToPush.AddObjectLockNeeded();
+                
+                // Push request to queue
+                _clientRequestHandler.PushRequest(requestToPush);
+                
+                // Wait for request to be executed
+                _clientRequestHandler.WaitForTransaction(uniqueTransactionId).WaitOne();
+                
                 TransactionResponse response = new TransactionResponse();
-                response.ObjectsRead.AddRange(responseDadIntList);
-
-                _sharedContext.RemoveTransactionSignal(uniqueTransactionId);
-
-                _sharedContext.SetSharedContextSignal();
-
-                Console.WriteLine("[ClientServiceImpl] Transaction response sent");
-
-                _sharedContext.SharedContextSignal.Reset();
+                
+                response.ObjectsRead.AddRange(requestToPush.TransactionResult);
 
                 return response;
             }

@@ -52,7 +52,7 @@ class Program
                     break;
                 case "T":
                     DateTime currentDate = DateTime.Now;
-                    DateTime startTime = currentDate.AddSeconds(20);
+                    DateTime startTime = currentDate.AddSeconds(8);
                     config.StartTime = startTime;
                     break;
                 case "F":
@@ -118,10 +118,11 @@ class Program
         for (int i = 0; i < transactionManagers.Count; i++)
         {
             var tm = transactionManagers[i];
+            var tmId = i;
             var numTMs = transactionManagers.Count;
             var numLMs = leaseManagers.Count;
 
-            var arguments = $"{tm.Key} {tm.Value} {numTMs} {tmArgs} {numLMs} {lmArgs} - {timeSlots} {slotDuration} {slotBehaviors.Count} {string.Join(" ", slotBehaviors)} {startTime:HH:mm:ss}";
+            var arguments = $"{tm.Key} {tm.Value} {tmId} {numTMs} {tmArgs} {numLMs} {lmArgs} - {timeSlots} {slotDuration} {slotBehaviors.Count} {string.Join(" ", slotBehaviors)} {startTime:HH:mm:ss}";
 
             StartProcess("TransactionManager", arguments);
         }

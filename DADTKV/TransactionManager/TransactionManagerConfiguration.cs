@@ -7,12 +7,18 @@ namespace TransactionManager
     {
         public string TmNick { get; }
         public string TmUrl { get; }
+        
+        public int TmId { get; }
         public int NumberOfTm { get; }
         public int NumberOfLm { get; }
         public int TimeSlots { get; }
         public int SlotDuration { get; }
         public int SlotBehaviorCount { get; }
         public DateTime StartTime { get; }
+        
+        public Dictionary<string, string> TmNickMap { get; set; }
+        
+        public Dictionary<string, string> LmNickMap { get; set; }
 
         private readonly string[] _args;
 
@@ -24,8 +30,9 @@ namespace TransactionManager
             {
                 TmNick = args[0];
                 TmUrl = args[1];
-                NumberOfTm = int.Parse(args[2]);
-                NumberOfLm = int.Parse(args[3 + NumberOfTm * 2]);
+                TmId = int.Parse(args[2]);
+                NumberOfTm = int.Parse(args[3]);
+                NumberOfLm = int.Parse(args[4 + NumberOfTm * 2]);
 
                 int argBreaker = Array.IndexOf(args, "-");
                 TimeSlots = int.Parse(args[argBreaker + 1]);
@@ -38,28 +45,36 @@ namespace TransactionManager
                 throw new Exception("Error parsing configuration: " + ex.Message);
             }
         }
-
-        public List<string> ParseTmServers()
+        
+        public List<KeyValuePair<int, string>> ParseTmServers()
         {
-            List<string> tmServers = new List<string>();
+            var tmServers = new List<KeyValuePair<int, string>>();
+            TmNickMap = new Dictionary<string, string>();
             for (int i = 0; i < NumberOfTm; i++)
             {
-                if (_args.Length > 4 + i * 2 && _args[4 + i * 2] != TmUrl)
+                string nickname = _args[4 + i * 2];
+                string url = _args[5 + i * 2];
+                if (_args.Length > 5 + i * 2 && _args[5 + i * 2] != TmUrl)
                 {
-                    tmServers.Add(_args[4 + i * 2]);
+                    tmServers.Add(new KeyValuePair<int, string>(i, _args[5 + i * 2]));
+                    TmNickMap.Add(nickname, url);
                 }
             }
             return tmServers;
         }
 
-        public List<string> ParseLmServers()
+        public List<KeyValuePair<int, string>> ParseLmServers()
         {
-            List<string> lmServers = new List<string>();
+            var lmServers = new List<KeyValuePair<int, string>>();
+            LmNickMap = new Dictionary<string, string>();
             for (int i = 0; i < NumberOfLm; i++)
             {
-                if (_args.Length > 5 + NumberOfTm * 2 + i * 2)
+                string nickname = _args[5 + NumberOfTm * 2 + i * 2];
+                string url = _args[6 + NumberOfTm * 2 + i * 2];
+                if (_args.Length > 6 + NumberOfTm * 2 + i * 2)
                 {
-                    lmServers.Add(_args[5 + NumberOfTm * 2 + i * 2]);
+                    lmServers.Add(new KeyValuePair<int, string>(i, _args[6 + NumberOfTm * 2 + i * 2]));
+                    LmNickMap.Add(nickname, url);
                 }
             }
             return lmServers;
@@ -86,6 +101,11 @@ namespace TransactionManager
                     }
                     slotBehavior.Add(keyValuePair);
                 }
+            }
+            // Console.WriteLine("Slot behavior: ");
+            foreach (var behavior in slotBehavior)
+            {
+                Console.WriteLine(behavior.Key + " " + behavior.Value);
             }
             return slotBehavior;
         }

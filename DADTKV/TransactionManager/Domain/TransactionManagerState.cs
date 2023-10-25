@@ -55,10 +55,10 @@ namespace TransactionManager
             {
                 try
                 {
-                    Console.WriteLine("[TransactionManagerState] Objects in data storage:");
+                    //Console.WriteLine("[TransactionManagerState] Objects in data storage:");
                     foreach (var key in _dataStorage.Keys)
                     {
-                        Console.WriteLine($"[TransactionManagerState] Key: {key}, Value: {_dataStorage[key]}");
+                        //Console.WriteLine($"[TransactionManagerState] Key: {key}, Value: {_dataStorage[key]}");
                     }
                 }
                 catch (Exception ex)
@@ -106,7 +106,7 @@ namespace TransactionManager
         public void ClearLeasesPerLeaseManager()
         {
             _leasesPerLeaseManager.Clear();
-            Console.WriteLine($"[TransactionManagerState] cleared leasesPerLeaseManager");
+            //Console.WriteLine($"[TransactionManagerState] cleared leasesPerLeaseManager");
         }
     }
 }
