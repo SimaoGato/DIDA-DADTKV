@@ -25,6 +25,7 @@ class Program
     private int slotDuration;
     private DateTime startTime;
     private bool _isRunning = true;
+    private static readonly object SlotBehaviorLock = new object();
 
     private Program(string[] args)
     {
@@ -93,8 +94,11 @@ class Program
             LeaseManagerServiceImpl lmServiceImpl =
                 new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count);
 
+            ClientTxServiceImpl clientTxServiceImpl =
+                new ClientTxServiceImpl(tmNick, transactionManagerService, tmState);
+
             Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, 
-                tmUri.Port, lmServers.Count, lmServiceImpl);
+                tmUri.Port, lmServers.Count, lmServiceImpl, clientTxServiceImpl);
 
             server.Start();
             
@@ -109,6 +113,7 @@ class Program
             
             while(currentTimeslot <= timeSlots)
             {
+                clientTxServiceImpl.isUpdating = true;
                 for (int i = 0; i < slotBehavior.Count(); i++)
                 {
                     if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
@@ -120,8 +125,10 @@ class Program
                 if (!_isRunning)
                 {
                     Console.WriteLine($"Slot {currentTimeslot} crashed");
+                    // answer to pending requests
                     break;
                 }
+                clientTxServiceImpl.isUpdating = false;
                 Console.WriteLine($"Slot {currentTimeslot} started");
                 Thread.Sleep(slotDuration);
                 currentTimeslot++;
@@ -144,21 +151,20 @@ class Program
 
     private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService,
         TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm, 
-        LeaseManagerServiceImpl lmServiceImpl)
+        LeaseManagerServiceImpl lmServiceImpl, ClientTxServiceImpl clientTxServiceImpl)
     {
         
         return new Server
         {
             Services =
             {
-                ClientTransactionService.BindService(new ClientTxServiceImpl(tmNick, transactionManagerService, tmState)),
+                ClientTransactionService.BindService(clientTxServiceImpl),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
                 LeaseResponseService.BindService(lmServiceImpl)
             },
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
     }
-
     private static void PrintConfigurationDetails(string tmNick, string tmUrl, int tmId, List<string> tmServers, List<string> lmServers,
         List<KeyValuePair<string, string>> slotBehavior, int timeSlots, int slotDuration)
     {

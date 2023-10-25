@@ -8,6 +8,7 @@ namespace TransactionManager
         private readonly TransactionManagerService _transactionManagerService;
         private readonly TransactionManagerState _transactionManagerState;
         private readonly string _transactionManagerId;
+        public bool isUpdating { get; set; }
 
         public ClientTxServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, 
             TransactionManagerState transactionManagerState)
@@ -15,11 +16,29 @@ namespace TransactionManager
             _transactionManagerId = transactionManagerId;
             _transactionManagerService = transactionManagerService;
             _transactionManagerState = transactionManagerState;
+            isUpdating = false;
         }
 
         public override Task<TransactionResponse> TxSubmit(TransactionRequest request, ServerCallContext context)
         {
-            return Task.FromResult(DoTransaction(request));
+            Console.WriteLine(isUpdating);
+            if (!isUpdating)
+            {
+                return Task.FromResult(DoTransaction(request));
+            }
+            else
+            {
+                DadInt dadInt = new DadInt
+                {
+                    Key = "abort",
+                    Value = 1 // code for updating
+                };
+
+                TransactionResponse response = new TransactionResponse();
+                response.ObjectsRead.Add(dadInt);
+                
+                return Task.FromResult(response);
+            }
         }
 
         private TransactionResponse DoTransaction(TransactionRequest request)
@@ -42,6 +61,8 @@ namespace TransactionManager
                 Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
 
                 List<DadInt> responseDadIntList = new List<DadInt>();
+                
+                Thread.Sleep(3000);
 
                 lock (_lock)
                 {
