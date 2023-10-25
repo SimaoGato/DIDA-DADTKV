@@ -13,8 +13,12 @@ class Program
     private string tmUrl;
     private int tmId;
     private List<KeyValuePair<int, string>> tmServersIdMap;
+    private Dictionary<string, string> tmNickMap;
+    private List<string> tmNicks;
     private List<string> tmServers;
     private List<KeyValuePair<int, string>> lmServersIdMap;
+    private Dictionary<string, string> lmNickMap;
+    private List<string> lmNicks;
     private List<string> lmServers;
     private List<KeyValuePair<string, string>> slotBehavior;
     private int timeSlots;
@@ -29,12 +33,24 @@ class Program
         tmUrl = _tmConfiguration.TmUrl;
         tmId = _tmConfiguration.TmId;
         tmServersIdMap = _tmConfiguration.ParseTmServers();
+        tmNickMap = _tmConfiguration.TmNickMap;
+        tmNicks = new List<string>();
+        foreach (var server in tmNickMap)
+        {
+            tmNicks.Add(server.Key);
+        }
         tmServers = new List<string>();
         foreach (var server in tmServersIdMap)
         {
             tmServers.Add(server.Value);
         }
         lmServersIdMap = _tmConfiguration.ParseLmServers();
+        lmNickMap = _tmConfiguration.LmNickMap;
+        lmNicks = new List<string>();
+        foreach (var server in lmNickMap)
+        {
+            lmNicks.Add(server.Key);
+        }
         lmServers = new List<string>();
         foreach (var server in lmServersIdMap)
         {
@@ -97,7 +113,6 @@ class Program
                 {
                     if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
                     {
-                        Console.WriteLine($"Slot {currentTimeslot} has behavior");
                         UpdateSlotBehavior(slotBehavior[i], transactionManagerService);
                         break;
                     }
@@ -168,7 +183,6 @@ class Program
     {
         var crashes = slot.Key;
         var suspects = slot.Value;
-        transactionManagerService.ResetSuspects();
         string[] groups = crashes.Split('#');
         var tmCrashBehavior = groups[1];
         var lmCrashBehavior = groups[2];
@@ -195,16 +209,16 @@ class Program
         }
         // print variable suspects
         string[] suspectsGroups = suspects.Split('+');
-        Console.WriteLine("Suspects: ");
         foreach (var suspect in suspectsGroups)
         {
-            // I want to use a string like (TM1, TM2) where TM1 suspects TM2. Put in two variables the string
-            // TM1 and TM2
-            Console.WriteLine(suspect);
             string[] suspectGroup = suspect.Split(',');
-            string suspect1 = suspectGroup[0].Substring(1);
-            string suspect2 = suspectGroup[1].Substring(0, suspectGroup[1].Length - 1);
-            Console.WriteLine($"{suspect1} suspects {suspect2}");
+            string sourceServer = suspectGroup[0].Substring(1);
+            string targetServer = suspectGroup[1].Substring(0, suspectGroup[1].Length - 1);
+            if (sourceServer == tmNick && tmNicks.Contains(targetServer))
+            {
+                Console.WriteLine($"Suspecting tm {targetServer}");
+                // someService.SuspectTransactionManager(tmNickMap[targetServer]);
+            }
         }
     }
     
@@ -213,6 +227,9 @@ class Program
         var crashedServer = tmServersIdMap.Find(x => x.Key == id).Value;
         tmServers.Remove(crashedServer);
         tmServersIdMap.Remove(tmServersIdMap.Find(x => x.Key == id));
+        var crashedServerNick = tmNickMap.FirstOrDefault(x => x.Value == crashedServer).Key;
+        tmNickMap.Remove(crashedServerNick);
+        tmNicks.Remove(crashedServerNick);
     }
 
     public void RemoveCrashedLeaseServer(int id, TransactionManagerService transactionManagerService)
@@ -220,6 +237,9 @@ class Program
         var crashedServer = lmServersIdMap.Find(x => x.Key == id).Value;
         lmServers.Remove(crashedServer);
         lmServersIdMap.Remove(lmServersIdMap.Find(x => x.Key == id));
+        var crashedServerNick = lmNickMap.FirstOrDefault(x => x.Value == crashedServer).Key;
+        lmNickMap.Remove(crashedServerNick);
+        lmNicks.Remove(crashedServerNick);
         transactionManagerService.RemoveLeaseManagerStub(crashedServer);
     }
 }

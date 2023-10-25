@@ -15,6 +15,10 @@ namespace TransactionManager
         public int SlotDuration { get; }
         public int SlotBehaviorCount { get; }
         public DateTime StartTime { get; }
+        
+        public Dictionary<string, string> TmNickMap { get; set; }
+        
+        public Dictionary<string, string> LmNickMap { get; set; }
 
         private readonly string[] _args;
 
@@ -45,37 +49,32 @@ namespace TransactionManager
         public List<KeyValuePair<int, string>> ParseTmServers()
         {
             var tmServers = new List<KeyValuePair<int, string>>();
+            TmNickMap = new Dictionary<string, string>();
             for (int i = 0; i < NumberOfTm; i++)
             {
+                string nickname = _args[4 + i * 2];
+                string url = _args[5 + i * 2];
                 if (_args.Length > 5 + i * 2 && _args[5 + i * 2] != TmUrl)
                 {
                     tmServers.Add(new KeyValuePair<int, string>(i, _args[5 + i * 2]));
+                    TmNickMap.Add(nickname, url);
                 }
             }
             return tmServers;
         }
 
-        /*public List<string> ParseLmServers()
-        {
-            List<string> lmServers = new List<string>();
-            for (int i = 0; i < NumberOfLm; i++)
-            {
-                if (_args.Length > 6 + NumberOfTm * 2 + i * 2)
-                {
-                    lmServers.Add(_args[6 + NumberOfTm * 2 + i * 2]);
-                }
-            }
-            return lmServers;
-        }*/
-
         public List<KeyValuePair<int, string>> ParseLmServers()
         {
             var lmServers = new List<KeyValuePair<int, string>>();
+            LmNickMap = new Dictionary<string, string>();
             for (int i = 0; i < NumberOfLm; i++)
             {
+                string nickname = _args[5 + NumberOfTm * 2 + i * 2];
+                string url = _args[6 + NumberOfTm * 2 + i * 2];
                 if (_args.Length > 6 + NumberOfTm * 2 + i * 2)
                 {
                     lmServers.Add(new KeyValuePair<int, string>(i, _args[6 + NumberOfTm * 2 + i * 2]));
+                    LmNickMap.Add(nickname, url);
                 }
             }
             return lmServers;

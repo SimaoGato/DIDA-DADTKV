@@ -39,7 +39,7 @@ namespace TransactionManager
                 //Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
 
                 // Request a lease for the objects
-                //Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
+                Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
 
                 List<DadInt> responseDadIntList = new List<DadInt>();
 

@@ -8,7 +8,6 @@ namespace TransactionManager
     {
         private readonly Dictionary<string, GrpcChannel> _leaseManagersGrpcChannels = new Dictionary<string, GrpcChannel>();
         private Dictionary<string, LeaseService.LeaseServiceClient> _leaseManagersStubs = new Dictionary<string, LeaseService.LeaseServiceClient>();
-        private Dictionary<string, bool> _leaseManagersSuspected = new Dictionary<string, bool>();
 
         public TransactionManagerService(List<string> lmAddresses)
         {
@@ -19,7 +18,6 @@ namespace TransactionManager
                     var channel = GrpcChannel.ForAddress(lmAddress);
                     _leaseManagersGrpcChannels.Add(lmAddress, channel);
                     _leaseManagersStubs.Add(lmAddress, new LeaseService.LeaseServiceClient(channel));
-                    _leaseManagersSuspected.Add(lmAddress, false);
                 }
                 catch (Exception ex)
                 {
@@ -54,14 +52,11 @@ namespace TransactionManager
             {
                 try
                 {
-                    if (_leaseManagersSuspected[lmStub.Key] == false)
+                    var response = lmStub.Value.RequestLease(request);
+                    //Console.WriteLine($"[TransactionManagerService] Response from lm {lmStub.Key}: {response.Ack}");
+                    if (!response.Ack)
                     {
-                        var response = lmStub.Value.RequestLease(request);
-                        //Console.WriteLine($"[TransactionManagerService] Response from lm {lmStub.Key}: {response.Ack}");
-                        if (!response.Ack)
-                        {
-                            return false;
-                        }
+                        return false;
                     }
                 }
                 catch (Exception ex)
@@ -80,17 +75,5 @@ namespace TransactionManager
             _leaseManagersStubs.Remove(lmServerAddress);
         }
         
-        public void ResetSuspects()
-        {
-            foreach (var lm in _leaseManagersSuspected)
-            {
-                _leaseManagersSuspected[lm.Key] = false;
-            }
-        }
-        
-        public void SuspectLeaseManager(string lmServerAddress)
-        {
-            _leaseManagersSuspected[lmServerAddress] = true;
-        }
     }
 }
