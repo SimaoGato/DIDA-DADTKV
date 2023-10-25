@@ -6,25 +6,30 @@ service PaxosService {
 }
 
 message Prepare {
-  int32 IDp = 1;
+  int32 round = 1;
+  int32 IDp = 2;
 }
 
 message Promise {
-  int32 IDp = 1;
-  int32 IDa = 2;
-  repeated Lease value = 3;
+  int32 round = 1;
+  int32 IDp = 2;
+  int32 IDa = 3;
+  repeated Lease value = 4;
 }
 
 message Accept {
-  int32 IDp = 1;
-  repeated Lease value = 2;
+  int32 round = 1;
+  int32 IDp = 2;
+  repeated Lease value = 3;
 }
 
 message Accepted {
-  int32 IDp = 1;
-  repeated Lease value = 2;
+  int32 round = 1;
+  int32 IDp = 2;
+  repeated Lease value = 3;
 }
 
 message Lease {
-  repeated string value = 1;
+  int32 round = 1;
+  repeated string value = 2;
 }

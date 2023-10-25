@@ -20,9 +20,6 @@ public class TransactionManagerServiceImpl : LeaseService.LeaseServiceBase
     {
         List<string> leaseRequested = request.Value.ToList();
         _lmState.AddLease(leaseRequested);
-        
-        //print out the requested lease
-        Console.WriteLine("Lease Requested: {0}", string.Join(", ", leaseRequested));
 
         LeaseResponse response = new LeaseResponse
         {

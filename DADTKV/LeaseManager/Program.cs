@@ -1,7 +1,6 @@
 ﻿using Grpc.Core;
 using LeaseManager;
 using LeaseManager.Paxos;
-using Timer = System.Timers.Timer;
 
 class Program
 {
@@ -41,8 +40,8 @@ class Program
         _slotDuration = lmConfig.slotDuration;
         _startTime = lmConfig.startTime;
         _lmService = new LeaseManagerService(tmServers);
-        _acceptor = new Acceptor(_lmId, _numberOfLm, _lmService);
-        _proposer = new Proposer(_lmId, _numberOfLm, lmServers, _acceptor);
+        _acceptor = new Acceptor(_lmId, _numberOfLm);
+        _proposer = new Proposer(_lmId, _numberOfLm, lmServers, _acceptor, _lmState, _lmService);
         
         var lmUri = new Uri(_lmUrl);
         _server = new Server
@@ -68,53 +67,38 @@ class Program
         Console.WriteLine($"Starting in {timeToStart} s");
         Thread.Sleep(msToWait);
         
-        int round = 1;
-        ManualResetEvent timerFinished = new ManualResetEvent(true);
-        Timer slotTimer = new Timer(program._slotDuration);
-        slotTimer.Elapsed += (_, _) =>
+        int timeSlot = 1;
+        while (timeSlot <= program._timeSlots)
         {
-            if (timerFinished.WaitOne(0))
+            Console.WriteLine("\n(LM): [STARTING TIMESLOT {0}...]\n", timeSlot);
+            Thread.Sleep(program._slotDuration);
+            program._lmState.PrintBuffer();
+            if (program.CheckCrashes(timeSlot + 1)) // There are no crashes in the first round 
             {
-                Console.WriteLine();
-                Console.WriteLine("[ROUND: " + round + "]");
-                timerFinished.Reset();
-                program._proposer.PrepareForNextEpoch();
-                program._acceptor.PrepareForNextEpoch();
-                bool isCrashed = program.CheckCrashes(round);
-                if (!isCrashed)
-                {
-                    // TODO: Maybe call paxos only if we have a majority (?)
-                    program.Paxos();
-                    Console.WriteLine("[ROUND FINISHED]");
-                    Console.WriteLine();
-                }
-                round++;
-                if ((round > program._timeSlots) || isCrashed)
-                {
-                    slotTimer.Stop();
-                    // TODO: Do automatic shutdown (?)
-                    Console.WriteLine();
-                    Console.WriteLine("[ENDING PROGRAM...]");
-                    Console.WriteLine("Press any key to close...");
-                }
-                timerFinished.Set();
+                break;
             }
-        };
-        slotTimer.AutoReset = true;
-        slotTimer.Start();
+            if (program._proposer.PaxosIsRunning())
+            {
+                Console.WriteLine("(LM): There is a Paxos round still running...");
+                timeSlot++;
+                continue; // Can't call paxos if is still running
+            }
+            program.Paxos();
+            timeSlot++;
+        }
         
-        Console.WriteLine("(LM): Press any key to stop...");
+        Console.WriteLine();
+        Console.WriteLine("(LM): [ENDING PROGRAM...]");
+        Console.WriteLine("(LM): Press any key to close...");
         Console.ReadKey();
         program.ShutDown();
     }
 
     private void Paxos()
     {
-        _proposer.Value.AddRange(_lmState.RequestedLeases);
-        Console.WriteLine("(LM): Starting Paxos...");
+        _proposer.PrepareForNextEpoch();
+        _acceptor.PrepareForNextEpoch();
         _proposer.StartPaxos();
-        Console.WriteLine("(LM): Paxos has Finished");
-        _lmState.CleanRequestedLeases();
     }
 
     private void ShutDown()

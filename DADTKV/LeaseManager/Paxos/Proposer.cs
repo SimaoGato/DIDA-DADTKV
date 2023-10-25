@@ -6,20 +6,19 @@ public class Proposer
 {
     private readonly Dictionary<string, GrpcChannel> _channels;
     private readonly Dictionary<string, PaxosService.PaxosServiceClient> _stubs;
+    private readonly LeaseManagerState _lmState;
+    private readonly LeaseManagerService _lmService;
+    private int _round = 1;
+    private int _roundReceived = -1;
     private int _IDp; 
     private int _IDa = -1;
     private List<List<string>> _value = new List<List<string>>();
     private readonly int _nServers;
     private readonly Acceptor _acceptor;
-    private int _leaderId;
     private int _timeout = 1;
-
-    public List<List<string>> Value
-    {
-        get { return _value; }
-    }
+    private bool _paxosIsRunning;
   
-    public Proposer(int iDp, int nServers,  Dictionary<string, string> servers, Acceptor acceptor)
+    public Proposer(int iDp, int nServers,  Dictionary<string, string> servers, Acceptor acceptor, LeaseManagerState lmState, LeaseManagerService lmService)
     {
         _IDp = iDp;
         _nServers = nServers;
@@ -34,35 +33,28 @@ public class Proposer
         }
 
         _acceptor = acceptor;
+        _lmState = lmState;
+        _lmService = lmService;
+        _paxosIsRunning = false;
     }
 
     public void StartPaxos()
     {
-        Task t = PhaseOne();
-        t.Wait();
-        // // If there is no leader, start with phase 1
-        // if (_leaderId == -1)
-        // {
-        //     //Console.WriteLine("START WITH PHASE ONE 1");
-        //     PhaseOne();
-        // }
-        // else if (_IDp == _leaderId) // Multi-Paxos
-        // {
-        //     //Console.WriteLine("START WITH PHASE ONE 2");
-        //     PhaseTwo();
-        // }
+        Console.WriteLine("\n(Proposer): [STARTING PAXOS ROUND: {0}]", _round);
+        PhaseOne();
     }
 
-    public async Task PhaseOne()
+    public async void PhaseOne()
     {
-        Console.WriteLine("(Proposer): Phase One");
+        _paxosIsRunning = true;
+        
         // Want to propose a value, send prepare ID
-        var prepare = new Prepare { IDp = _IDp };
-
-        List<Task<Promise>> sendTasks = SendPrepare(prepare, out int countSuspects);
+        var prepare = new Prepare { IDp = _IDp, Round = _round };
+        Console.WriteLine("(Proposer): Sending Prepares... My ID: {0}, ROUND: {1}, Value: {2}", _IDp, _round, PrintLease(_value));
+        List<Task<Promise>> sendTasks = SendPrepare(prepare, out int countBadConnections);
 
         int count = 0;
-        while (count <= _nServers / 2 && sendTasks.Count > 0 && countSuspects < _nServers / 2)
+        while (count <= _nServers / 2 && sendTasks.Count > 0 && countBadConnections < _nServers / 2)
         {
             Task<Promise> completedTask = await Task.WhenAny(sendTasks);
             sendTasks.Remove(completedTask);
@@ -72,7 +64,7 @@ public class Proposer
             if (promise.IDp == _IDp) // Yes, update count
             {
                 count++;
-                Console.WriteLine("I've got a promise from, count: {0}, IDp: {1}", count, _IDp);
+                // Console.WriteLine("(Proposer): I've got a promise from, count: {0}, IDp: {1}, ROUND: {2}", count, _IDp, _round);
                 // Did it receive Promise _IDp accepted IDa, value?
                 if (promise.IDa != -1 && (promise.IDa > _IDa)) 
                 {
@@ -80,11 +72,12 @@ public class Proposer
                     _IDa = promise.IDa; 
                     //Console.WriteLine("(Proposer):Value has changed: {0}", PrintLease(_value));
                 }
+                _roundReceived = promise.Round;
             }
             else if (promise.IDp == -2) // Receive a ignore response due to suspect
             {
-                Console.WriteLine("Received an ignore response due to suspect");
-                countSuspects++;
+                Console.WriteLine("(Proposer): Received an ignore response due to suspect, ROUND: {0}", _round);
+                countBadConnections++;
             }
         }
         
@@ -92,35 +85,45 @@ public class Proposer
         if (count > _nServers / 2)
         {
             _timeout = 1;
-            Console.WriteLine("(Proposer): I got majority, go to Phase 2 with value: {0}", PrintLease(_value));
-            Task t = PhaseTwo(); // Yes, go to phase 2
-            t.Wait();
+            if (_round == _roundReceived) // If the majority is on the same round as me
+            {
+                Console.WriteLine("(Proposer): I got majority ID: {2}, Sending Accepts... with value: {0}, ROUND: {1}", PrintLease(_value), _round, _IDp);
+                PhaseTwo(); // Yes, go to phase 2
+            }
+            else // If not, update buffer and move to the next round
+            {
+                Console.WriteLine("(Proposer): I got majority, in a previous round with value: {0}, ROUND: {1}", PrintLease(_value), _round);
+                _lmState.RemoveLeases(_value);
+                _round++;
+                PrepareForNextEpoch();
+                PhaseOne();
+            }
         }
-        else if (countSuspects < _nServers / 2) // If does not have a majority and is not suspected by a majority
+        else if (countBadConnections < _nServers / 2) // If does not have a majority and is not suspected by a majority
         {
             // Retry again with higher ID 
             _IDp += _nServers;
             // Timeout to avoid live lock
-            Console.WriteLine("(Proposer): Wait Timeout: {0}", _timeout);
+            // Console.WriteLine("(Proposer): Wait Timeout: {0}, ROUND: {1}", _timeout, _round);
             Thread.Sleep(_timeout * 1000); 
             _timeout *= 2;
-            Console.WriteLine("(Proposer): Retrying Prepare with new ID: {0}", _IDp);
-            Task t = PhaseOne();
-            t.Wait();
+            Console.WriteLine("(Proposer): Retrying Prepares... with new ID: {0}, ROUND: {1}", _IDp, _round);
+            PhaseOne();
         }
         else
         {
-            Console.WriteLine("(Proposer): Can't connect to a majority in Phase One");
+            Console.WriteLine("(Proposer): Can't connect to a majority in Phase One, ROUND: {0}", _round);
+            _paxosIsRunning = false; // Let LM know that can call another paxos if needed
         }
     }
 
-    private async Task PhaseTwo()
+    private async void PhaseTwo()
     {
         Accept accept = SetValue();
-        List<Task<Accepted>> sendTasks = SendAccept(accept, out int countSuspects);
+        List<Task<Accepted>> sendTasks = SendAccept(accept, out int countBadConnections);
         
         int count = 0;
-        while (count <= _nServers / 2 && sendTasks.Count > 0 && countSuspects < _nServers / 2)
+        while (count <= _nServers / 2 && sendTasks.Count > 0 && countBadConnections < _nServers / 2)
         {
             Task<Accepted> completedTask = await Task.WhenAny(sendTasks);
             sendTasks.Remove(completedTask);
@@ -130,45 +133,63 @@ public class Proposer
             if (accepted.IDp == _IDp) 
             {
                 count++; // Yes
+                _roundReceived = accepted.Round;
             }
             else if (accepted.IDp == -2) // Receive a ignore response due to suspect
             {
-                countSuspects++;
+                countBadConnections++;
             }
         }
         
         // Check majority
         if (count > _nServers / 2)
         {
-            Console.WriteLine("(Proposer): !! Finish Paxos with value: {0} (my id: {1})", PrintLease(_value), _IDp); 
+            Console.WriteLine("(Proposer): !! Finish Paxos with value: {0} (my id: {1}), ROUND: {2}", PrintLease(_value), _IDp, _round);
+            if (_round < _roundReceived) // Acceptors actually was in a higher round
+            {
+                _lmState.RemoveLeases(_value);
+                _round++;
+                PrepareForNextEpoch();
+                PhaseOne();
+            }
+            else // Acceptors was in the same round as me
+            {
+                _round++; 
+                _lmService.SendLeases(_round, _value);
+                _lmState.RemoveLeases(_value);
+                _paxosIsRunning = false; // Let LM know that can call another paxos if needed
+            }
         }
-        else if (countSuspects >= _nServers / 2)
+        else if (countBadConnections >= _nServers / 2)
         {
-            Console.WriteLine("(Proposer): Can't connect to a majority in Phase Two");
+            Console.WriteLine("(Proposer): Can't connect to a majority in Phase Two, ROUND: {0}", _round);
+            _paxosIsRunning = false; // Let LM know that can call another paxos if needed
         }
         else
         {
-            Console.WriteLine("(Proposer): Didn't achieve majority in Phase 2, count: {0}", count);
+            Console.WriteLine("(Proposer): Didn't achieve majority in Phase Two, count: {0}, ROUND: {1}", count, _round);
+            Console.WriteLine("(Proposer): Retrying Phase One, ROUND: {0}", _round);
+            PhaseOne();
         }
     }
 
-    private List<Task<Promise>> SendPrepare(Prepare prepare, out int countSuspects)
+    private List<Task<Promise>> SendPrepare(Prepare prepare, out int countBadConnections)
     {
         List<Task<Promise>> sendTasks = new List<Task<Promise>>();
-        Console.WriteLine("(Proposer): Sending prepare to: My Acceptor, my id: {0}", _IDp);
+        // Console.WriteLine("(Proposer): Sending prepare to: My Acceptor, my id: {0}, ROUND: {1}", _IDp, _round);
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseOne(prepare)));
         
-        countSuspects = 0;
+        countBadConnections = _nServers - (_stubs.Count + 1); // Count with crashes
         foreach (var stub in _stubs)
         {
             if (!Suspects.IsSuspected(stub.Key))
             {
-                Console.WriteLine("(Proposer): Sending prepare to: {0}, my id: {1}", stub.Key, _IDp);
+                // Console.WriteLine("(Proposer): Sending prepare to: {0}, my id: {1}, ROUND:{2}", stub.Key, _IDp, _round);
                 sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseOne(prepare)));
             }
             else
             {
-                countSuspects++;
+                countBadConnections++;
             }
         }
 
@@ -187,23 +208,23 @@ public class Proposer
         return auxLease;
     }
 
-    private List<Task<Accepted>> SendAccept(Accept accept, out int countSuspects)
+    private List<Task<Accepted>> SendAccept(Accept accept, out int countBadConnections)
     {
         List<Task<Accepted>> sendTasks = new List<Task<Accepted>>();
-        Console.WriteLine("(Proposer): Sending accept to: My Acceptor, my id: {0}", _IDp);
+        // Console.WriteLine("(Proposer): Sending accept to: My Acceptor, my id: {0}, ROUND: {1}", _IDp, _round);
         sendTasks.Add(Task.Run(() => _acceptor.DoPhaseTwo(accept)));
         
-        countSuspects = 0;
+        countBadConnections = _nServers - (_stubs.Count + 1); // Count with crashes
         foreach (var stub in _stubs)
         {
             if (!Suspects.IsSuspected(stub.Key))
             {
-                Console.WriteLine("(Proposer): Sending accept to: {0}, my id: {1}", stub.Key, _IDp);
+                // Console.WriteLine("(Proposer): Sending accept to: {0}, my id: {1}, ROUND: {2}", stub.Key, _IDp, _round);
                 sendTasks.Add(Task.Run(() => stub.Value.PaxosPhaseTwo(accept)));
             }
             else
             {
-                countSuspects++;
+                countBadConnections++;
             }
         }
 
@@ -212,7 +233,7 @@ public class Proposer
 
     private Accept SetValue()
     {
-        var accept = new Accept { IDp = _IDp };
+        var accept = new Accept { IDp = _IDp, Round = _round};
         
         foreach (var leaseAux in _value)
         {
@@ -226,9 +247,9 @@ public class Proposer
     
     public void PrepareForNextEpoch()
     {
-        _leaderId = _acceptor.LeaderID;
         _IDa = -1;
         _value.Clear();
+        _value = _lmState.RequestedLeases.ToList();
     }
 
     private static string PrintLease(List<List<string>> value)
@@ -242,18 +263,19 @@ public class Proposer
             //     leaseAux = leaseAux + " " + str;
             // }
             // result = result + leaseAux + " | ";
-            result = result + lease[0] + " | ";
+            result = result + lease[1].Substring(0,9) + " | ";
         }
 
         return result;
     }
     
+    public bool PaxosIsRunning()
+    {
+        return _paxosIsRunning;
+    }
+    
     public void RemoveNode(string nickname, int id)
     {
-        if (_leaderId % _nServers == id)
-        {
-            _leaderId = -1; // leader has crashed
-        }
         _channels[nickname].ShutdownAsync().Wait();
         _channels.Remove(nickname);
         _stubs.Remove(nickname);

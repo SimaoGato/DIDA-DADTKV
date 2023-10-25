@@ -19,9 +19,9 @@ public class LeaseManagerService
         }
     }
     
-    public bool SendLeases(List<List<string>> leases)
+    public bool SendLeases(int round, List<List<string>> leases)
     {
-        var request = new SendLeaseRequest();
+        var request = new SendLeaseRequest { Round = round };
 
         foreach (var l in leases)
         {
