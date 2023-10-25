@@ -57,7 +57,7 @@ namespace TransactionManager
                     if (_leaseManagersSuspected[lmStub.Key] == false)
                     {
                         var response = lmStub.Value.RequestLease(request);
-                        Console.WriteLine($"[TransactionManagerService] Response from lm {lmStub.Key}: {response.Ack}");
+                        //Console.WriteLine($"[TransactionManagerService] Response from lm {lmStub.Key}: {response.Ack}");
                         if (!response.Ack)
                         {
                             return false;

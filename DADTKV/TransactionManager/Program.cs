@@ -93,7 +93,15 @@ class Program
             
             while(currentTimeslot <= timeSlots)
             {
-                UpdateSlotBehavior(slotBehavior[currentTimeslot-1], transactionManagerService);
+                for (int i = 0; i < slotBehavior.Count(); i++)
+                {
+                    if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
+                    {
+                        Console.WriteLine($"Slot {currentTimeslot} has behavior");
+                        UpdateSlotBehavior(slotBehavior[i], transactionManagerService);
+                        break;
+                    }
+                }
                 if (!_isRunning)
                 {
                     Console.WriteLine($"Slot {currentTimeslot} crashed");
@@ -190,7 +198,13 @@ class Program
         Console.WriteLine("Suspects: ");
         foreach (var suspect in suspectsGroups)
         {
+            // I want to use a string like (TM1, TM2) where TM1 suspects TM2. Put in two variables the string
+            // TM1 and TM2
             Console.WriteLine(suspect);
+            string[] suspectGroup = suspect.Split(',');
+            string suspect1 = suspectGroup[0].Substring(1);
+            string suspect2 = suspectGroup[1].Substring(0, suspectGroup[1].Length - 1);
+            Console.WriteLine($"{suspect1} suspects {suspect2}");
         }
     }
     
