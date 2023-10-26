@@ -94,7 +94,9 @@ class Program
             LeaseManagerServiceImpl lmServiceImpl =
                 new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count);
             
-            ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState);
+            LeaseHandler leaseHandler = new LeaseHandler();
+            
+            ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState, leaseHandler);
 
             ClientTxServiceImpl clientTxServiceImpl =
                 new ClientTxServiceImpl(tmNick, transactionManagerService, tmState, clientRequestHandler);

@@ -8,13 +8,15 @@ public class ClientRequestHandler
     public bool isUpdating { get; set; }
     public bool isCrashed { get; set; }
     public ManualResetEvent canClose { get; set; }
+    public LeaseHandler _leaseHandler;
     
-    public ClientRequestHandler(TransactionManagerState transactionManagerState)
+    public ClientRequestHandler(TransactionManagerState transactionManagerState, LeaseHandler leaseHandler)
     {
         _transactionManagerState = transactionManagerState;
         isUpdating = false;
         isCrashed = false;
         canClose = new ManualResetEvent(false);
+        _leaseHandler = leaseHandler;
     }
     
     public ManualResetEvent WaitForTransaction(string transactionId)
@@ -133,7 +135,9 @@ public class ClientRequestHandler
                     var objectsLockNeeded = requestToCheck.ObjectsLockNeeded;
                     
                     // Check if has necessary lease
-                    // leaseHandler.AskForLease(objectsLockNeeded).waitOne();
+                    _leaseHandler.AskForLease(objectsLockNeeded);
+                    _leaseHandler.WaitForLease().WaitOne();
+                    _leaseHandler.ResetLeaseSignal();
                     
                     while (isUpdating)
                     {
