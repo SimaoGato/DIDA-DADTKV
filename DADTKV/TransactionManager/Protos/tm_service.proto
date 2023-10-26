@@ -1,0 +1,24 @@
+﻿syntax = "proto3";
+
+service TmService {
+    rpc PropagateLease (Lease) returns (PropagateResponse);
+    rpc PropagateTransaction (Transaction) returns (PropagateResponse);
+}
+
+message Lease {
+    repeated string value = 1;
+}
+
+message PropagateResponse {
+    string response = 1;
+}
+
+message Transaction {
+    repeated DadIntObj transactions = 1;
+}
+
+message DadIntObj {
+    string key = 1;
+    int64 value = 2;
+}
+

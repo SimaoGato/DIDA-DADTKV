@@ -61,36 +61,47 @@ public class ClientService
 
         var currentTmAddress = _mainTmAddress;
         TransactionResponse response = new TransactionResponse();
-        try
+        
+        int retryAttempts = 0;
+        int maxRetryAttempts = 10;
+        while (retryAttempts < maxRetryAttempts)
         {
-            response = await _clientTxStub.TxSubmitAsync(request);
-            while (response.ObjectsRead.Count > 0 && response.ObjectsRead[0].Key == "abort") // send request again
+            try
             {
-                Thread.Sleep(1000); //TODO HOW MUCH TIME TO WAIT
-                if (response.ObjectsRead[0].Value == 1)
+                response = await _clientTxStub.TxSubmitAsync(request);
+                if (response.ObjectsRead.Count > 0 && response.ObjectsRead[0].Key == "abort") // send request again
                 {
-                    Console.WriteLine("[ClientService] Resubmitting transaction to the tm server: " + currentTmAddress);
-                    response = await _clientTxStub.TxSubmitAsync(request);
+                    if (response.ObjectsRead[0].Value == 1)
+                    {
+                        Thread.Sleep(200);
+                        Console.WriteLine("[ClientService] Resubmitting transaction to the tm server: " + currentTmAddress);
+                        retryAttempts++;
+                        //response = await _clientTxStub.TxSubmitAsync(request);
+                    }
+                    else
+                    {
+                        currentTmAddress = _tmServers[(_tmServers.IndexOf(currentTmAddress) + 1) % _tmServers.Count];
+                        Console.WriteLine("[ClientService] Submitting transaction to another tm server: " + currentTmAddress);
+                        var txChannel = GrpcChannel.ForAddress(currentTmAddress);
+                        _grpcChannels.Add(txChannel);
+                        _clientTxStub = new ClientTransactionService.ClientTransactionServiceClient(txChannel);
+                        //response = await _clientTxStub.TxSubmitAsync(request);
+                    }
                 }
                 else
                 {
-                    currentTmAddress = _tmServers[(_tmServers.IndexOf(currentTmAddress) + 1) % _tmServers.Count];
-                    Console.WriteLine("[ClientService] Submitting transaction to another tm server: " + currentTmAddress);
-                    var txChannel = GrpcChannel.ForAddress(currentTmAddress);
-                    _grpcChannels.Add(txChannel);
-                    _clientTxStub = new ClientTransactionService.ClientTransactionServiceClient(txChannel);
-                    response = await _clientTxStub.TxSubmitAsync(request);
+                    break;
                 }
             }
-        }
-        catch (RpcException ex)
-        {
-            Console.WriteLine($"Tm server {currentTmAddress} for transaction unavailable, sending the transaction to another TM");
-            currentTmAddress = _tmServers[(_tmServers.IndexOf(currentTmAddress) + 1) % _tmServers.Count];
-            var txChannel = GrpcChannel.ForAddress(currentTmAddress);
-            _grpcChannels.Add(txChannel);
-            _clientTxStub = new ClientTransactionService.ClientTransactionServiceClient(txChannel);
-            response = await _clientTxStub.TxSubmitAsync(request);
+            catch (RpcException ex)
+            {
+                Console.WriteLine($"Tm server {currentTmAddress} for transaction unavailable, sending the transaction to another TM");
+                currentTmAddress = _tmServers[(_tmServers.IndexOf(currentTmAddress) + 1) % _tmServers.Count];
+                var txChannel = GrpcChannel.ForAddress(currentTmAddress);
+                _grpcChannels.Add(txChannel);
+                _clientTxStub = new ClientTransactionService.ClientTransactionServiceClient(txChannel);
+                //response = await _clientTxStub.TxSubmitAsync(request);
+            }
         }
         
         
@@ -110,11 +121,11 @@ public class ClientService
             try
             {
                 var response = await stub.Key.StatusAsync(request);
-                Console.WriteLine($"Status of {stub.Key}: {response.Status}");
+                Console.WriteLine($"Status of {stub.Value}: {response.Status}");
             }
             catch (RpcException ex)
             {
-                Console.WriteLine($"Status of {stub.Key}: unavailable");
+                Console.WriteLine($"Status of {stub.Value}: unavailable");
                 Thread.Sleep(0);
             }
         }
