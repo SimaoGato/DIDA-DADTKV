@@ -13,8 +13,11 @@ namespace TransactionManager
         private readonly int _numberOfLeaseManagers;
         private string _tmNick;
         private int _round = 1;
+        private ManualResetEvent _leaseReceivedSignal;
+        private LeaseHandler _leaseHandler;
         
-        public LeaseManagerServiceImpl(string tmNick, TransactionManagerState transactionManagerState, int numberOfLeaseManagers)
+        public LeaseManagerServiceImpl(string tmNick, TransactionManagerState transactionManagerState, 
+            int numberOfLeaseManagers, LeaseHandler leaseHandler, ManualResetEvent leaseReceivedSignal)
         {
             if (transactionManagerState == null)
             {
@@ -29,6 +32,8 @@ namespace TransactionManager
             _tmNick = tmNick;
             _transactionManagerState = transactionManagerState;
             _numberOfLeaseManagers = numberOfLeaseManagers;
+            _leaseReceivedSignal = leaseReceivedSignal;
+            _leaseHandler = leaseHandler;
         }
 
         public override Task<SendLeaseResponse> SendLeases(SendLeaseRequest request, ServerCallContext context)
@@ -56,9 +61,10 @@ namespace TransactionManager
                 lock (this)
                 {
                     if (request.Round == _round)
-                    {
+                    { 
                         var leases = request.Leases.Select(lease => lease.Value.ToList()).ToList();
-                        _transactionManagerState.ReceiveLeases(leases);
+                        _leaseHandler.ReceiveLeases(leases);
+                        _leaseReceivedSignal.Set();
                         _round++; // Now i want only to see leases of the next round
                     }
 
@@ -67,7 +73,7 @@ namespace TransactionManager
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error while sending leases: {ex.Message}");
+                Console.WriteLine($"[LeaseManagerServiceImpl] Error while sending leases: {ex.Message}");
                 return new SendLeaseResponse
                 {
                     Ack = false,

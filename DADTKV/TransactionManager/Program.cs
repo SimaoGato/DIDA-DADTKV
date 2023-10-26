@@ -92,10 +92,12 @@ class Program
             var transactionManagerLeaseService = new TransactionManagerLeaseService(lmServers);
             var transactionManagerPropagateService = new TransactionManagerPropagateService(tmNickMap, tmNick);
 
-            LeaseManagerServiceImpl lmServiceImpl =
-                new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count);
+            ManualResetEvent leaseReceivedSignal = new ManualResetEvent(false);
             
-            LeaseHandler leaseHandler = new LeaseHandler();
+            LeaseHandler leaseHandler = new LeaseHandler(tmNick, transactionManagerLeaseService, leaseReceivedSignal);
+
+            LeaseManagerServiceImpl lmServiceImpl =
+                new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count, leaseHandler, leaseReceivedSignal);
             
             ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState, leaseHandler);
 

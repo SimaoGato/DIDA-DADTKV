@@ -94,7 +94,6 @@ public class ClientRequestHandler
             _transactionManagerState.WriteOperation(key, value);
         }
         NotifyTransactionCompletion(transactionId);
-        Console.WriteLine("Transaction {0} completed", transactionId);
     }
     
     public void AbortAllTransactions()
@@ -132,10 +131,11 @@ public class ClientRequestHandler
                 {
                     // Check first request in queue
                     Request requestToCheck = CheckTopRequest();
+                    var transactionId = requestToCheck.TransactionId;
                     var objectsLockNeeded = requestToCheck.ObjectsLockNeeded;
                     
                     // Check if has necessary lease
-                    _leaseHandler.AskForLease(objectsLockNeeded);
+                    Task.Run(() => _leaseHandler.AskForPermissionToExecuteTransaction(transactionId, objectsLockNeeded));
                     _leaseHandler.WaitForLease().WaitOne();
                     _leaseHandler.ResetLeaseSignal();
                     
@@ -148,6 +148,7 @@ public class ClientRequestHandler
                     if (!isCrashed)
                     {
                         ExecuteTransaction();
+                        _leaseHandler.TransactionFinished();
                     }
                 }
 
