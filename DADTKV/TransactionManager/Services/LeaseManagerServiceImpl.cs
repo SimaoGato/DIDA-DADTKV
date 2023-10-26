@@ -12,6 +12,7 @@ namespace TransactionManager
         private readonly TransactionManagerState _transactionManagerState;
         private readonly int _numberOfLeaseManagers;
         private string _tmNick;
+        private int _round = 1;
         
         public LeaseManagerServiceImpl(string tmNick, TransactionManagerState transactionManagerState, int numberOfLeaseManagers)
         {
@@ -54,12 +55,14 @@ namespace TransactionManager
             {
                 lock (this)
                 {
-                    var leases = request.Leases.Select(lease => lease.Value.ToList()).ToList();
-                    _transactionManagerState.ReceiveLeases(leases);
-                    return new SendLeaseResponse
+                    if (request.Round == _round)
                     {
-                        Ack = true,
-                    };
+                        var leases = request.Leases.Select(lease => lease.Value.ToList()).ToList();
+                        _transactionManagerState.ReceiveLeases(leases);
+                        _round++; // Now i want only to see leases of the next round
+                    }
+
+                    return new SendLeaseResponse { Ack = true };
                 }
             }
             catch (Exception ex)

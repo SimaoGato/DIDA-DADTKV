@@ -154,9 +154,9 @@ public class Proposer
             }
             else // Acceptors was in the same round as me
             {
-                _round++; 
                 _lmService.SendLeases(_round, _value);
                 _lmState.RemoveLeases(_value);
+                _round++; 
                 _paxosIsRunning = false; // Let LM know that can call another paxos if needed
             }
         }
