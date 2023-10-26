@@ -7,7 +7,7 @@ namespace TransactionManager
     public class TransactionManagerLeaseService
     {
         private readonly Dictionary<string, GrpcChannel> _leaseManagersGrpcChannels = new Dictionary<string, GrpcChannel>();
-        private Dictionary<string, TransactionService.TransactionServiceClient> _leaseManagersStubs = new Dictionary<string, TransactionService.TransactionServiceClient>();
+        private Dictionary<string, LeaseService.LeaseServiceClient> _leaseManagersStubs = new Dictionary<string, LeaseService.LeaseServiceClient>();
 
         public TransactionManagerLeaseService(List<string> lmAddresses)
         {
@@ -17,7 +17,7 @@ namespace TransactionManager
                 {
                     var channel = GrpcChannel.ForAddress(lmAddress);
                     _leaseManagersGrpcChannels.Add(lmAddress, channel);
-                    _leaseManagersStubs.Add(lmAddress, new TransactionService.TransactionServiceClient(channel));
+                    _leaseManagersStubs.Add(lmAddress, new LeaseService.LeaseServiceClient(channel));
                 }
                 catch (Exception ex)
                 {
