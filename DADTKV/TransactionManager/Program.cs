@@ -120,6 +120,7 @@ class Program
             while(currentTimeslot <= timeSlots)
             {
                 clientTxServiceImpl.isUpdating = true;
+                clientRequestHandler.isUpdating = true;
                 for (int i = 0; i < slotBehavior.Count(); i++)
                 {
                     if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
@@ -131,14 +132,18 @@ class Program
                 if (!_isRunning)
                 {
                     Console.WriteLine($"Slot {currentTimeslot} crashed");
-                    // answer to pending requests
+                    clientRequestHandler.isCrashed = true;
+                    clientRequestHandler.canClose.WaitOne();
                     break;
                 }
                 clientTxServiceImpl.isUpdating = false;
+                clientRequestHandler.isUpdating = false;
                 Console.WriteLine($"Slot {currentTimeslot} started");
                 Thread.Sleep(slotDuration);
                 currentTimeslot++;
             }
+            
+            clientRequestHandlerThread.Interrupt();
             
             transactionManagerService.CloseLeaseManagerStubs();
             
@@ -219,7 +224,7 @@ class Program
                 RemoveCrashedLeaseServer(i, transactionManagerService);
             }
         }
-        // print variable suspects
+        
         if (suspects.Count() != 0)
         {
             string[] suspectsGroups = suspects.Split('+');

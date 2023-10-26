@@ -5,10 +5,16 @@ public class ClientRequestHandler
     Queue<Request> _requestQueue = new Queue<Request>();
     TransactionManagerState _transactionManagerState;
     private Dictionary<string, ManualResetEvent> transactionSignals = new Dictionary<string, ManualResetEvent>();
+    public bool isUpdating { get; set; }
+    public bool isCrashed { get; set; }
+    public ManualResetEvent canClose { get; set; }
     
     public ClientRequestHandler(TransactionManagerState transactionManagerState)
     {
         _transactionManagerState = transactionManagerState;
+        isUpdating = false;
+        isCrashed = false;
+        canClose = new ManualResetEvent(false);
     }
     
     public ManualResetEvent WaitForTransaction(string transactionId)
@@ -89,6 +95,21 @@ public class ClientRequestHandler
         Console.WriteLine("Transaction {0} completed", transactionId);
     }
     
+    public void AbortAllTransactions()
+    {
+        DadInt dadInt = new DadInt
+        {
+            Key = "abort",
+            Value = 0 // code for crash
+        };
+        while (!IsEmpty())
+        {
+            Request requestToAbort = PopRequest();
+            requestToAbort.AddTransactionResult(dadInt);
+            NotifyTransactionCompletion(requestToAbort.TransactionId);
+        }
+    }
+    
     public void PrintQueue()
     {
         Console.WriteLine("Printing queue");
@@ -97,17 +118,44 @@ public class ClientRequestHandler
             item.PrintRequest();
         }
     }
-    
+
     public void ProcessTransactions()
     {
-        while (true)
+        try
         {
-            Thread.Sleep(2000);
-            if (!IsEmpty())
+            while (true)
             {
-                ExecuteTransaction();
-                Console.WriteLine("Transaction executed");
+                Thread.Sleep(1);
+                if(!IsEmpty())
+                {
+                    // Check first request in queue
+                    Request requestToCheck = CheckTopRequest();
+                    var objectsLockNeeded = requestToCheck.ObjectsLockNeeded;
+                    
+                    // Check if has necessary lease
+                    // leaseHandler.AskForLease(objectsLockNeeded).waitOne();
+                    
+                    while (isUpdating)
+                    {
+                        Thread.Sleep(250);
+                        Console.WriteLine("Waiting for update to finish");
+                    }
+
+                    if (!isCrashed)
+                    {
+                        ExecuteTransaction();
+                    }
+                }
+
+                if (isCrashed)
+                {
+                    AbortAllTransactions();
+                    canClose.Set();
+                }
             }
+        } catch (ThreadInterruptedException)
+        {
+            Console.WriteLine("Worker thread was interrupted.");
         }
     }
 }
