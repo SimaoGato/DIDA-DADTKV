@@ -1,4 +1,5 @@
-﻿using Grpc.Net.Client;
+﻿using Grpc.Core;
+using Grpc.Net.Client;
 
 namespace LeaseManager;
 
@@ -32,10 +33,21 @@ public class LeaseManagerService
 
         foreach (var tmStub in _transactionManagersStubs)
         {
-            var response = tmStub.Value.SendLeases(request);
-            if (!response.Ack)
+            try
             {
-                return false;
+                var response = tmStub.Value.SendLeases(request);
+                if (!response.Ack)
+                {
+                    return false;
+                }
+            }
+            catch (RpcException exception)
+            {
+                if (exception.StatusCode == StatusCode.Unavailable)
+                {
+                    Console.WriteLine("(LM Service): TM is unavailable");
+                    return false;
+                }
             }
         }
 
