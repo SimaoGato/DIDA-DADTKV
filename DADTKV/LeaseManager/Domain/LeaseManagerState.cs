@@ -1,8 +1,8 @@
-﻿namespace LeaseManager;
+﻿namespace LeaseManager.Domain;
 
 public class LeaseManagerState
 {
-    private List<List<string>> _requestedLeases = new List<List<string>>();
+    private readonly List<List<string>> _requestedLeases = new List<List<string>>();
 
     public List<List<string>> RequestedLeases
     {
@@ -28,19 +28,10 @@ public class LeaseManagerState
                     if (lease[1] == requestedLease[1]) // Check for the id of the lease
                     {
                         _requestedLeases.Remove(requestedLease);
-                        Console.WriteLine("(LM State): Removed lease: " + lease[1].Substring(0,9));
                         break;
                     }
                 }
             }
-
-            string result = "";
-            foreach (var lease in _requestedLeases)
-            {
-                result = result + lease[1].Substring(0,9) + " | ";
-            }
-            Console.WriteLine("(LM State After Remove): " + result);
-            Console.WriteLine();
         }
     }
     
@@ -51,11 +42,17 @@ public class LeaseManagerState
         {
             result = result + lease[1].Substring(0,9) + " | ";
         }
-        Console.WriteLine("(LM State Content): " + result);
+        
+        if (result == "")
+        {
+            result += "{ Empty }";
+        }
+        else
+        {
+            result = result.Remove(result.Length - 3);
+        }
+        
+        Console.WriteLine("(LM Leases to decide): " + result);
     }
     
-    public void CleanRequestedLeases()
-    {
-        _requestedLeases.Clear();
-    }
 }

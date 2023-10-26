@@ -36,7 +36,6 @@ public class Acceptor : PaxosService.PaxosServiceBase
         // Ignore calls of suspects
         if ((prepare.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(prepare.IDp % _nServers)))
         {
-            Console.WriteLine("(Acceptor): I am ignoring a Prepare call from ID: {0}, ROUND: {1}", prepare.IDp, _round);
             return new Promise() { IDp = -2 };
         }
         
@@ -44,12 +43,10 @@ public class Acceptor : PaxosService.PaxosServiceBase
 
         if (prepare.Round < _round) // Proposer is in an older round
         {
-            Console.WriteLine("(Acceptor): Proposer round: {0} | Acceptor round: {1}", prepare.Round, _round);
             promise.Round = _round;
             promise.IDp = prepare.IDp;
             promise.IDa = _acceptedValues[prepare.Round - 1].Key;
             SetPromiseValue(promise, _acceptedValues[prepare.Round - 1].Value);
-            Console.WriteLine("(Acceptor): Old Round, The value was: {0}", PrintLease(_acceptedValues[prepare.Round - 1].Value));
             return promise;
         }
         
@@ -68,8 +65,6 @@ public class Acceptor : PaxosService.PaxosServiceBase
         promise.Round = _round;
         promise.IDa = _IDa;
         SetPromiseValue(promise, _value);
-        Console.WriteLine("(Acceptor): Send Promise with IDp: {0}, IDa: {1}, Value: {2}, ROUND: {3} to: {4}", promise.IDp,
-            _IDa, PrintLease(_value), _round, prepare.IDp);
         return promise;
     }
     
@@ -77,7 +72,6 @@ public class Acceptor : PaxosService.PaxosServiceBase
     {
         if ((accept.IDp % _nServers) != _lmId && Suspects.IsSuspected(Suspects.GetNickname(accept.IDp % _nServers)))
         {
-            Console.WriteLine("(Acceptor): I am ignoring an Accept call from ID: {0}, ROUND: {1}", accept.IDp, _round);
             return new Accepted() { IDp = -2 };
         }
         
@@ -88,7 +82,6 @@ public class Acceptor : PaxosService.PaxosServiceBase
             accepted.Round = _round;
             accepted.IDp = accept.IDp;
             SetAcceptedValue(accepted, _acceptedValues[accept.Round - 1].Value);
-            Console.WriteLine("(Acceptor): PH2 - Old Round, The value was: {0}", _acceptedValues[accept.Round - 1].Value);
             return accepted;
         }
         // Did it promise to ignore requests with this ID?
@@ -111,7 +104,6 @@ public class Acceptor : PaxosService.PaxosServiceBase
             }
             accepted.IDp = _IDp;
             SetAcceptedValue(accepted, _value);
-            Console.WriteLine("(Acceptor): Value accepted: {0} from IDp: {1}, ROUND: {2}", PrintLease(_value), _IDp, _round);
         }
         
         return accepted;
@@ -156,20 +148,4 @@ public class Acceptor : PaxosService.PaxosServiceBase
         _value.Clear();
     }
     
-    private static string PrintLease(List<List<string>> value)
-    {
-        string result = "";
-        foreach (var lease in value)
-        {
-            // string leaseAux = "";
-            // foreach (var str in lease)
-            // {
-            //     leaseAux = leaseAux + " " + str;
-            // }
-            // result = result + leaseAux + " | ";
-            result = result + lease[1].Substring(0, 9) + " | ";
-        }
-    
-        return result;
-    }
 }

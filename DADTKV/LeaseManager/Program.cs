@@ -1,25 +1,25 @@
 ﻿using Grpc.Core;
-using LeaseManager;
+using LeaseManager.Domain;
 using LeaseManager.Paxos;
+using LeaseManager.Services;
+namespace LeaseManager;
 
 class Program
 {
-    private LeaseManagerState _lmState;
-    private string _lmNick;
-    private string _lmUrl;
-    private int _lmId;
-    private int _numberOfLm;
-    private Dictionary<int, string> _lmIdsMap;
-    private int _numberOfTm;
-    private Dictionary<int, string> _tmIdsMap;
-    private DateTime _startTime;
-    private int _timeSlots;
-    private int _slotDuration;
-    private Dictionary<int, List<string>> _slotBehaviors;
-    private Server _server;
-    private Proposer _proposer;
-    private Acceptor _acceptor;
-    private LeaseManagerService _lmService;
+    private readonly LeaseManagerState _lmState;
+    private readonly string _lmNick;
+    private readonly string _lmUrl;
+    private readonly int _lmId;
+    private readonly Dictionary<int, string> _lmIdsMap;
+    private readonly Dictionary<int, string> _tmIdsMap;
+    private readonly DateTime _startTime;
+    private readonly int _timeSlots;
+    private readonly int _slotDuration;
+    private readonly Dictionary<int, List<string>> _slotBehaviors;
+    private readonly Server _server;
+    private readonly Proposer _proposer;
+    private readonly Acceptor _acceptor;
+    private readonly LeaseManagerService _lmService;
     
     private Program(string[] args)
     {
@@ -28,11 +28,10 @@ class Program
         _lmNick = lmConfig.lmNick;
         _lmUrl = lmConfig.lmUrl;
         _lmId = lmConfig.lmId;
-        _numberOfLm = lmConfig.numberOfLm;
+        int _numberOfLm = lmConfig.numberOfLm;
         _lmIdsMap = lmConfig.lmIdsMap;
         Dictionary<string, string> lmServers = lmConfig.lmServers;
         Suspects.SetMaps(_lmIdsMap);
-        _numberOfTm = lmConfig.numberOfTm;
         _tmIdsMap = lmConfig.tmIdsMap;
         Dictionary<string, string> tmServers = lmConfig.tmServers;
         _slotBehaviors = lmConfig.slotBehaviors;
@@ -70,7 +69,7 @@ class Program
         int timeSlot = 1;
         while (timeSlot <= program._timeSlots)
         {
-            Console.WriteLine("\n(LM): [STARTING TIMESLOT {0}...]\n", timeSlot);
+            Console.WriteLine("\n(LM): [STARTING TIMESLOT {0}...]", timeSlot);
             Thread.Sleep(program._slotDuration);
             program._lmState.PrintBuffer();
             if (program.CheckCrashes(timeSlot + 1)) // There are no crashes in the first round 
@@ -111,10 +110,8 @@ class Program
     private bool CheckCrashes(int round)
     {
         Suspects.ResetSuspects();
-        Console.WriteLine("(LM): Checking Crashes...");
-        if (!_slotBehaviors.ContainsKey(round))
+        if (!_slotBehaviors.ContainsKey(round)) // No changes for this round
         {
-            Console.WriteLine("(LM): No behavior change for this round");
             return false;
         }
         
@@ -124,7 +121,7 @@ class Program
         {
             if (tmStatus[i] == 'C' && _tmIdsMap.ContainsKey(i))
             {
-                Console.WriteLine("(LM): Need to close connection to TM: " + i);
+                Console.WriteLine("(LM): Need to close connection to TM: " + _tmIdsMap[i]);
                 string nick = _tmIdsMap[i];
                 _lmService.RemoveStub(nick);
                 _tmIdsMap.Remove(i);
@@ -134,14 +131,14 @@ class Program
         string lmStatus = behaviors[1];
         if (lmStatus[_lmId] == 'C')
         {
-            Console.WriteLine("(LM): I am crashing... my ID: " + _lmId);
+            Console.WriteLine("(LM): I am crashing...");
             return true;
         }
         for (int i = 0; i < lmStatus.Length; i++)
         {
             if (lmStatus[i] == 'C' && _lmIdsMap.ContainsKey(i))
             {
-                Console.WriteLine("(LM): Need to close connection to LM: " + i);
+                Console.WriteLine("(LM): Need to close connection to LM: " + _lmIdsMap[i]);
                 string nick = _lmIdsMap[i];
                 _proposer.RemoveNode(nick, i);
                 _lmIdsMap.Remove(i);

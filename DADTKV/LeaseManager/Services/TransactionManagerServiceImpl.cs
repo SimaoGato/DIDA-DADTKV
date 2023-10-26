@@ -1,10 +1,10 @@
 using Grpc.Core;
-
-namespace LeaseManager;
+using LeaseManager.Domain;
+namespace LeaseManager.Services;
 
 public class TransactionManagerServiceImpl : LeaseService.LeaseServiceBase
 {
-    private LeaseManagerState _lmState;
+    private readonly LeaseManagerState _lmState;
     
     public TransactionManagerServiceImpl(LeaseManagerState lmState)
     {

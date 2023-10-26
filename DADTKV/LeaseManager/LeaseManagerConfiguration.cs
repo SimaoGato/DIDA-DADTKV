@@ -1,18 +1,18 @@
 ﻿namespace LeaseManager {
     public class LeaseManagerConfiguration {
-        private string[] _args;
-        public string lmNick;
-        public string lmUrl;
-        public int lmId;
-        public int numberOfLm;
-        public Dictionary<int, string> lmIdsMap;
-        public Dictionary<string, string> lmServers;
-        public int numberOfTm;
-        public Dictionary<int, string> tmIdsMap;
-        public Dictionary<string, string> tmServers;
-        public int timeSlots;
-        public int slotDuration;
-        private int _slotBehaviorsCount; // TODO: If this is == timeSlots, then remove
+        private readonly string[] _args;
+        public readonly string lmNick;
+        public readonly string lmUrl;
+        public readonly int lmId;
+        public readonly int numberOfLm;
+        public readonly Dictionary<int, string> lmIdsMap;
+        public readonly Dictionary<string, string> lmServers;
+        private readonly int numberOfTm;
+        public readonly Dictionary<int, string> tmIdsMap;
+        public readonly Dictionary<string, string> tmServers;
+        public readonly int timeSlots;
+        public readonly int slotDuration;
+        private readonly int _slotBehaviorsCount;
         public Dictionary<int, List<string>> slotBehaviors; 
         public DateTime startTime;
 
@@ -22,47 +22,51 @@
             lmUrl = args[1];
             lmId = int.Parse(args[2]);
             numberOfLm = int.Parse(args[3]);
-            ParseLmServers();
+            ParseLmServers(out Dictionary<int, string> _lmIdsMap, out Dictionary<string, string> _lmServers);
+            lmIdsMap = _lmIdsMap;
+            lmServers = _lmServers;
             numberOfTm = int.Parse(args[4 + numberOfLm * 2]);
-            ParseTmServers();
+            ParseTmServers(out Dictionary<int, string> _tmIdsMap, out Dictionary<string, string> _tmServers);
+            tmIdsMap = _tmIdsMap;
+            tmServers = _tmServers;
             var argBreaker = Array.IndexOf(args, "-");
             timeSlots = int.Parse(args[argBreaker + 1]);
             slotDuration = int.Parse(args[argBreaker + 2]);
             _slotBehaviorsCount = int.Parse(args[argBreaker + 3]);
-            ParseSlotBehaviors();
+            slotBehaviors = ParseSlotBehaviors();
             startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
             
             PrintArgs();
         }
         
-        public void ParseTmServers() {
-            tmIdsMap = new Dictionary<int, string>();
-            tmServers = new Dictionary<string, string>(); 
+        private void ParseTmServers(out Dictionary<int, string> _tmIdsMap, out Dictionary<string, string> _tmServers) {
+            _tmIdsMap = new Dictionary<int, string>();
+            _tmServers = new Dictionary<string, string>(); 
             for(int i = 0; i < numberOfTm; i++)
             {
                 string nickname = _args[5 + numberOfLm * 2 + i * 2];
                 string url = _args[6 + numberOfLm * 2 + i * 2];
-                tmIdsMap.Add(i, nickname);
-                tmServers.Add(nickname, url);
+                _tmIdsMap.Add(i, nickname);
+                _tmServers.Add(nickname, url);
             }
         }
 
-        private void ParseLmServers() {
-            lmIdsMap = new Dictionary<int, string>();
-            lmServers = new Dictionary<string, string>();
+        private void ParseLmServers(out Dictionary<int, string> _lmIdsMap, out Dictionary<string, string> _lmServers) {
+            _lmIdsMap = new Dictionary<int, string>();
+            _lmServers = new Dictionary<string, string>();
             for(int i = 0; i < numberOfLm; i++)
             {
                 string nickname = _args[4 + i * 2];
                 string url = _args[5 + i * 2];
                 if (nickname != lmNick)
                 {
-                    lmIdsMap.Add(i, nickname);
-                    lmServers.Add(nickname, url);
+                    _lmIdsMap.Add(i, nickname);
+                    _lmServers.Add(nickname, url);
                 }
             }
         }
         
-        private void ParseSlotBehaviors() {
+        private Dictionary<int, List<string>> ParseSlotBehaviors() {
             slotBehaviors = new Dictionary<int, List<string>>();
             var start = Array.IndexOf(_args, "-") + 4;
             for (var i = start; i < start + _slotBehaviorsCount; i++)
@@ -78,6 +82,8 @@
                 }
                 slotBehaviors.Add(slot, behaviors);
             }
+            
+            return slotBehaviors;
         }
 
         private void PrintArgs()
