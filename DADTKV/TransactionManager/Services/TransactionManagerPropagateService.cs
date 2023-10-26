@@ -8,20 +8,25 @@ namespace TransactionManager
     {
         private readonly Dictionary<string, GrpcChannel> _transactionManagersGrpcChannels = new ();
         private Dictionary<string, TmService.TmServiceClient> _transactionManagersStubs = new ();
+        private Dictionary<string, string> _tmNickMap;
+        private List<List<string>> _suspectedList;
+        private string _tmNick;
 
-        public TransactionManagerPropagateService(List<string> tmAddresses)
+        public TransactionManagerPropagateService(Dictionary<string, string> tmNickMap, string tmNick)
         {
-            foreach (var tmAddress in tmAddresses)
+            _tmNickMap = tmNickMap;
+            _tmNick = tmNick;
+            foreach (var tm in tmNickMap)
             {
                 try
                 {
-                    var channel = GrpcChannel.ForAddress(tmAddress);
-                    _transactionManagersGrpcChannels.Add(tmAddress, channel);
-                    _transactionManagersStubs.Add(tmAddress, new TmService.TmServiceClient(channel));
+                    var channel = GrpcChannel.ForAddress(tm.Value);
+                    _transactionManagersGrpcChannels.Add(tm.Value, channel);
+                    _transactionManagersStubs.Add(tm.Value, new TmService.TmServiceClient(channel));
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error while creating channel for address {tmAddress}: {ex.Message}");
+                    Console.WriteLine($"Error while creating channel for address {tm.Value}: {ex.Message}");
                 }
             }
         }
@@ -52,16 +57,40 @@ namespace TransactionManager
             {
                 try
                 {
-                    var response = await tmStub.Value.PropagateTransactionAsync(request);
-                    Console.WriteLine($"[TransactionManagerPropagateService] Response from tm {tmStub.Key}: {response.Response}");
-                    // if (!response.Ack)
-                    // {
-                    //     return false;
-                    // }
+                    if (!IsSuspected(tmStub.Key))
+                    {
+                        var response = await tmStub.Value.PropagateTransactionAsync(request);
+                        Console.WriteLine(
+                            $"[TransactionManagerPropagateService] Transaction Response from tm {tmStub.Key}: {response.Ack}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("is suspected");
+                    }
+                    // TODO WHAT TO DO WITH THE RESPONSE
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"Error while making BroadcastTransaction call: {ex.Message}");
+                    Console.WriteLine($"Error while making BroadcastTransaction call");
+                }
+            }
+        }
+
+        public async void BroadcastLease()
+        {
+            // TODO HOW TO SEND LEASE, WITH LIST<STRING> ??? -- not done
+            var request = new Lease { };
+            foreach (var tmStub in _transactionManagersStubs)
+            {
+                try
+                {
+                    var response = await tmStub.Value.PropagateLeaseAsync(request);
+                    Console.WriteLine($"[TransactionManagerPropagateService] Lease Response from tm {tmStub.Key}: {response.Ack}");
+                    // TODO WHAT TO DO WITH THE RESPONSE
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine($"Error while making BroadcastLease call");
                 }
             }
         }
@@ -74,5 +103,34 @@ namespace TransactionManager
             _transactionManagersGrpcChannels.Remove(tmServerAddress);
             _transactionManagersStubs.Remove(tmServerAddress);
         }
+
+        public void CreateSuspectedList(string suspects)
+        {
+            var parts = suspects.Split("+");
+            foreach (var part in parts)
+            {
+                var nicks = part.Trim('(',')').Split(",");
+                //Console.WriteLine("suspects: " + nicks[0] + "-" + nicks[1]);
+                _suspectedList.Add(new List<string> {nicks[0], nicks[1]});
+            }
+        }
+
+        public void ClearSuspectedList()
+        {
+            _suspectedList = new List<List<string>>();
+        }
+        
+        private bool IsSuspected(string nick)
+        {
+            var suspect = new List<string> { _tmNick, nick };
+            if (_suspectedList.Any(sublist => sublist.SequenceEqual(suspect)))
+            {
+                Console.WriteLine($"[Broadcast] {_tmNick} suspects {nick}");
+                return true;
+            }
+
+            return false;
+        }
+        
     }
 }

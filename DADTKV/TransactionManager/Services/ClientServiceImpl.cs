@@ -52,15 +52,6 @@ namespace TransactionManager
                 
                 Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
                 
-                List<string> objectsRequested = new List<string>();
-                objectsRequested.Add(uniqueTransactionId);
-                objectsRequested.AddRange(request.ObjectsToRead.Select(item => item));
-                objectsRequested.AddRange(request.ObjectsToWrite.Select(item => item.Key));
-
-                // Request a lease for the objects
-                //Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
-                _transactionManagerLeaseService.RequestLease(_transactionManagerId, objectsRequested);
-                
                 Request requestToPush = new Request(clientId, uniqueTransactionId);
                 
                 // Read objects

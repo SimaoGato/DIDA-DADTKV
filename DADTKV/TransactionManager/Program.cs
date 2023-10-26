@@ -90,12 +90,14 @@ class Program
             Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
 
             var transactionManagerLeaseService = new TransactionManagerLeaseService(lmServers);
-            var transactionManagerPropagateService = new TransactionManagerPropagateService(tmServers);
+            var transactionManagerPropagateService = new TransactionManagerPropagateService(tmNickMap, tmNick);
+
+            ManualResetEvent leaseReceivedSignal = new ManualResetEvent(false);
+            
+            LeaseHandler leaseHandler = new LeaseHandler(tmNick, transactionManagerLeaseService, leaseReceivedSignal);
 
             LeaseManagerServiceImpl lmServiceImpl =
-                new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count);
-            
-            LeaseHandler leaseHandler = new LeaseHandler();
+                new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count, leaseHandler, leaseReceivedSignal);
             
             ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState, leaseHandler);
 
@@ -174,7 +176,8 @@ class Program
             {
                 ClientTransactionService.BindService(clientTxServiceImpl),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
-                LeaseResponseService.BindService(lmServiceImpl)
+                LeaseResponseService.BindService(lmServiceImpl),
+                TmService.BindService(new TransactionManagerPropagateServiceImpl())
             },
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
@@ -204,6 +207,8 @@ class Program
     {
         var crashes = slot.Key;
         var suspects = slot.Value;
+        transactionManagerPropagateService.ClearSuspectedList();
+        transactionManagerPropagateService.CreateSuspectedList(suspects);
         string[] groups = crashes.Split('#');
         var tmCrashBehavior = groups[1];
         var lmCrashBehavior = groups[2];

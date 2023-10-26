@@ -10,7 +10,7 @@ message Lease {
 }
 
 message PropagateResponse {
-    string response = 1;
+    bool ack = 1;
 }
 
 message Transaction {
