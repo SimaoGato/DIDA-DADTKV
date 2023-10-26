@@ -4,6 +4,10 @@ service ClientTransactionService {
   rpc TxSubmit(TransactionRequest) returns (TransactionResponse);
 }
 
+service ClientStatusService {
+  rpc Status(StatusRequest) returns (StatusResponse);
+}
+
 message DadInt {
   string key = 1;
   int64 value = 2;
@@ -17,4 +21,11 @@ message TransactionRequest {
 
 message TransactionResponse {
   repeated DadInt objectsRead = 1;
+}
+
+message StatusRequest {
+}
+
+message StatusResponse {
+  bool status = 1;
 }

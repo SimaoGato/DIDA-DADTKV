@@ -10,9 +10,9 @@
 
     <ItemGroup>
         <Protobuf Include="Protos\lease_service.proto" GrpcServices="Client" />
-        <Protobuf Include="Protos\client_transaction_api.proto" GrpcServices="Server" />
-        <Protobuf Include="Protos\client_status_api.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\client_api.proto" GrpcServices="Server" />
         <Protobuf Include="Protos\lease_response_service.proto" GrpcServices="Server" />
+        <Protobuf Include="Protos\tm_service.proto" GrpcServices="Both" />
     </ItemGroup>
 
     <ItemGroup>
