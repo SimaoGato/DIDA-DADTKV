@@ -5,18 +5,18 @@ namespace TransactionManager
     public class ClientTxServiceImpl : ClientTransactionService.ClientTransactionServiceBase
     {
         private readonly object _lock = new object();
-        private readonly TransactionManagerService _transactionManagerService;
+        private readonly TransactionManagerLeaseService _transactionManagerLeaseService;
         private readonly TransactionManagerState _transactionManagerState;
         private readonly string _transactionManagerId;
         private ClientRequestHandler _clientRequestHandler;
         
         public bool isUpdating { get; set; }
 
-        public ClientTxServiceImpl(string transactionManagerId, TransactionManagerService transactionManagerService, 
+        public ClientTxServiceImpl(string transactionManagerId, TransactionManagerLeaseService transactionManagerLeaseService, 
             TransactionManagerState transactionManagerState, ClientRequestHandler clientRequestHandler)
         {
             _transactionManagerId = transactionManagerId;
-            _transactionManagerService = transactionManagerService;
+            _transactionManagerLeaseService = transactionManagerLeaseService;
             _transactionManagerState = transactionManagerState;
             isUpdating = false;
             _clientRequestHandler = clientRequestHandler;
@@ -59,7 +59,7 @@ namespace TransactionManager
 
                 // Request a lease for the objects
                 //Console.WriteLine("[ClientServiceImpl] Received ack: {0}", _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested));
-                _transactionManagerService.RequestLease(_transactionManagerId, objectsRequested);
+                _transactionManagerLeaseService.RequestLease(_transactionManagerId, objectsRequested);
                 
                 Request requestToPush = new Request(clientId, uniqueTransactionId);
                 

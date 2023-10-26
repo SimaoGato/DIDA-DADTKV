@@ -89,7 +89,8 @@ class Program
             Uri tmUri = new Uri(tmUrl);
             Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
 
-            var transactionManagerService = new TransactionManagerService(lmServers);
+            var transactionManagerLeaseService = new TransactionManagerLeaseService(lmServers);
+            var transactionManagerPropagateService = new TransactionManagerPropagateService(tmServers);
 
             LeaseManagerServiceImpl lmServiceImpl =
                 new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count);
@@ -99,9 +100,9 @@ class Program
             ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState, leaseHandler);
 
             ClientTxServiceImpl clientTxServiceImpl =
-                new ClientTxServiceImpl(tmNick, transactionManagerService, tmState, clientRequestHandler);
+                new ClientTxServiceImpl(tmNick, transactionManagerLeaseService, tmState, clientRequestHandler);
 
-            Server server = ConfigureServer(tmNick, transactionManagerService, tmState, tmUri.Host, 
+            Server server = ConfigureServer(tmNick, transactionManagerLeaseService, tmState, tmUri.Host, 
                 tmUri.Port, lmServers.Count, lmServiceImpl, clientTxServiceImpl);
 
             server.Start();
@@ -127,7 +128,7 @@ class Program
                 {
                     if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
                     {
-                        UpdateSlotBehavior(slotBehavior[i], transactionManagerService);
+                        UpdateSlotBehavior(slotBehavior[i], transactionManagerLeaseService, transactionManagerPropagateService);
                         break;
                     }
                 }
@@ -147,7 +148,7 @@ class Program
             
             clientRequestHandlerThread.Interrupt();
             
-            transactionManagerService.CloseLeaseManagerStubs();
+            transactionManagerLeaseService.CloseLeaseManagerStubs();
             
             server.ShutdownAsync().Wait();
             
@@ -162,7 +163,7 @@ class Program
         }
     }
 
-    private static Server ConfigureServer(string tmNick, TransactionManagerService transactionManagerService,
+    private static Server ConfigureServer(string tmNick, TransactionManagerLeaseService transactionManagerLeaseService,
         TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm, 
         LeaseManagerServiceImpl lmServiceImpl, ClientTxServiceImpl clientTxServiceImpl)
     {
@@ -198,7 +199,8 @@ class Program
         Console.WriteLine("----------");
     }
     
-    private void UpdateSlotBehavior(KeyValuePair<string, string> slot, TransactionManagerService transactionManagerService)
+    private void UpdateSlotBehavior(KeyValuePair<string, string> slot, TransactionManagerLeaseService transactionManagerLeaseService, 
+                                    TransactionManagerPropagateService transactionManagerPropagateService)
     {
         var crashes = slot.Key;
         var suspects = slot.Value;
@@ -215,7 +217,7 @@ class Program
                 }
                 else
                 {
-                    RemoveCrashedTransactionServer(i);
+                    RemoveCrashedTransactionServer(i, transactionManagerPropagateService);
                 }
             }
         }
@@ -223,7 +225,7 @@ class Program
         {
             if (lmCrashBehavior[i] == 'C')
             {
-                RemoveCrashedLeaseServer(i, transactionManagerService);
+                RemoveCrashedLeaseServer(i, transactionManagerLeaseService);
             }
         }
         
@@ -245,7 +247,7 @@ class Program
 
     }
     
-    private void RemoveCrashedTransactionServer(int id)
+    private void RemoveCrashedTransactionServer(int id, TransactionManagerPropagateService transactionManagerPropagateService)
     {
         var crashedServer = tmServersIdMap.Find(x => x.Key == id).Value;
         tmServers.Remove(crashedServer);
@@ -253,9 +255,11 @@ class Program
         var crashedServerNick = tmNickMap.FirstOrDefault(x => x.Value == crashedServer).Key;
         tmNickMap.Remove(crashedServerNick);
         tmNicks.Remove(crashedServerNick);
+        transactionManagerPropagateService.RemoveTransactionManagerStub(crashedServer);
+
     }
 
-    public void RemoveCrashedLeaseServer(int id, TransactionManagerService transactionManagerService)
+    public void RemoveCrashedLeaseServer(int id, TransactionManagerLeaseService transactionManagerLeaseService)
     {
         var crashedServer = lmServersIdMap.Find(x => x.Key == id).Value;
         lmServers.Remove(crashedServer);
@@ -263,6 +267,6 @@ class Program
         var crashedServerNick = lmNickMap.FirstOrDefault(x => x.Value == crashedServer).Key;
         lmNickMap.Remove(crashedServerNick);
         lmNicks.Remove(crashedServerNick);
-        transactionManagerService.RemoveLeaseManagerStub(crashedServer);
+        transactionManagerLeaseService.RemoveLeaseManagerStub(crashedServer);
     }
 }

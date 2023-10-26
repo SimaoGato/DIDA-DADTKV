@@ -4,12 +4,12 @@ using System.Collections.Generic;
 
 namespace TransactionManager
 {
-    public class TransactionManagerService
+    public class TransactionManagerLeaseService
     {
         private readonly Dictionary<string, GrpcChannel> _leaseManagersGrpcChannels = new Dictionary<string, GrpcChannel>();
-        private Dictionary<string, LeaseService.LeaseServiceClient> _leaseManagersStubs = new Dictionary<string, LeaseService.LeaseServiceClient>();
+        private Dictionary<string, TransactionService.TransactionServiceClient> _leaseManagersStubs = new Dictionary<string, TransactionService.TransactionServiceClient>();
 
-        public TransactionManagerService(List<string> lmAddresses)
+        public TransactionManagerLeaseService(List<string> lmAddresses)
         {
             foreach (var lmAddress in lmAddresses)
             {
@@ -17,7 +17,7 @@ namespace TransactionManager
                 {
                     var channel = GrpcChannel.ForAddress(lmAddress);
                     _leaseManagersGrpcChannels.Add(lmAddress, channel);
-                    _leaseManagersStubs.Add(lmAddress, new LeaseService.LeaseServiceClient(channel));
+                    _leaseManagersStubs.Add(lmAddress, new TransactionService.TransactionServiceClient(channel));
                 }
                 catch (Exception ex)
                 {
