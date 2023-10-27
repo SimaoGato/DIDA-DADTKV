@@ -158,6 +158,7 @@ public class ClientRequestHandler
                         if (transactions.Count != 0)
                         {
                             _tmPropagateService.BroadcastTransaction(transactionId, transactions);
+                            _tmPropagateService.WaitForMajorityResponse();
                         }
 
                         _leaseHandler.TransactionFinished();

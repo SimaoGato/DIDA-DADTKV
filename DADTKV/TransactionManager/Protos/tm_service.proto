@@ -7,6 +7,7 @@ service TmService {
 
 message Lease {
     repeated string value = 1;
+    string leaseId = 2;
 }
 
 message PropagateResponse {

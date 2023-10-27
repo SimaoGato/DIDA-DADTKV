@@ -11,14 +11,15 @@ namespace TransactionManager
     {
         private readonly TransactionManagerState _transactionManagerState;
         private TransactionManagerPropagateService _tmPropagateService;
-        private Dictionary<string, long> _transactionsToPropagate = new ();
-        private List<string> _transactionsReceived = new ();
+        private LeaseHandler _leaseHandler;
             
         public TransactionManagerPropagateServiceImpl(TransactionManagerState transactionManagerState, 
-                                                        TransactionManagerPropagateService tmPropagateService)
+                                                        TransactionManagerPropagateService tmPropagateService,
+                                                        LeaseHandler leaseHandler)
         {
             _transactionManagerState = transactionManagerState;
             _tmPropagateService = tmPropagateService;
+            _leaseHandler = leaseHandler;
         }
 
         public override Task<PropagateResponse> PropagateTransaction(Transaction request, ServerCallContext context)
@@ -39,25 +40,17 @@ namespace TransactionManager
             {
                 lock (this)
                 {
-                    Console.WriteLine("[PropagateServiceImpl] TM received propagate transactions");
-                    
                     var transactionId = request.TransactionId;
-                    if (!_transactionsReceived.Contains(transactionId))
+                    if (!_tmPropagateService.HasReceivedTransaction(transactionId))
                     {
-                        Console.WriteLine($"[PropagateServiceImpl] TM received propagate transactions for the first time");
-                        _transactionsReceived.Add(transactionId);
+                        _tmPropagateService.AddTransactionReceived(transactionId);
                         var transactionToPropagate = new Dictionary<string, long>();
                         foreach (var transaction in request.Transactions)
                         {
                             _transactionManagerState.WriteOperation(transaction.Key, transaction.Value);
                             transactionToPropagate.Add(transaction.Key, transaction.Value);
                         }
-                        
                         _tmPropagateService.BroadcastTransaction(transactionId, transactionToPropagate);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[PropagateServiceImpl] TM already received propagate transactions");
                     }
                     
                 }
@@ -69,5 +62,48 @@ namespace TransactionManager
                 return new PropagateResponse { Ack = false };
             }
         }
+        
+        public override Task<PropagateResponse> PropagateLease(Lease request, ServerCallContext context)
+        {
+            try
+            {
+                return Task.FromResult(DoPropagateLease(request));
+            }
+            catch (Exception)
+            {
+                return Task.FromResult(new PropagateResponse { Ack = false });
+            }
+        }
+        
+        private PropagateResponse DoPropagateLease(Lease request)
+        {
+            try
+            {
+                lock (this)
+                {
+                    var leaseId = request.LeaseId;
+                    if (!_tmPropagateService.HasReceivedLeaseReleased(leaseId))
+                    {
+                        _tmPropagateService.AddLeaseReleasedReceived(leaseId);
+                        var objectsToPropagate = new List<string>();
+                        foreach (var obj in request.Value)
+                        {
+                            objectsToPropagate.Add(obj);
+                        }
+                        _leaseHandler.RemoveLease(objectsToPropagate);
+                        _leaseHandler.SetLeaseReleasedSignal();
+                        _tmPropagateService.BroadcastLeaseReleased(leaseId, objectsToPropagate);
+                    }
+                    
+                }
+                // TODO USE ABORTFLAG
+                return new PropagateResponse { Ack = true };
+            }
+            catch (Exception)
+            {
+                return new PropagateResponse { Ack = false };
+            }
+        }
+        
     }
 }

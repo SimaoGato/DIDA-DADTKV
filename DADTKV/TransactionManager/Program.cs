@@ -94,7 +94,7 @@ class Program
 
             ManualResetEvent leaseReceivedSignal = new ManualResetEvent(false);
             
-            LeaseHandler leaseHandler = new LeaseHandler(tmNick, tmLeaseService, leaseReceivedSignal);
+            LeaseHandler leaseHandler = new LeaseHandler(tmNick, tmLeaseService, leaseReceivedSignal, tmPropagateService);
 
             LeaseManagerServiceImpl lmServiceImpl =
                 new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count, leaseHandler, leaseReceivedSignal);
@@ -105,7 +105,7 @@ class Program
                 new ClientTxServiceImpl(tmNick, tmLeaseService, tmState, clientRequestHandler);
 
             Server server = ConfigureServer(tmNick, tmLeaseService, tmState, tmUri.Host, 
-                tmUri.Port, lmServers.Count, tmPropagateService, lmServiceImpl, clientTxServiceImpl);
+                tmUri.Port, lmServers.Count, tmPropagateService, lmServiceImpl, clientTxServiceImpl, leaseHandler);
 
             server.Start();
             
@@ -167,7 +167,7 @@ class Program
 
     private static Server ConfigureServer(string tmNick, TransactionManagerLeaseService transactionManagerLeaseService,
         TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm, TransactionManagerPropagateService tmPropagateService,
-        LeaseManagerServiceImpl lmServiceImpl, ClientTxServiceImpl clientTxServiceImpl)
+        LeaseManagerServiceImpl lmServiceImpl, ClientTxServiceImpl clientTxServiceImpl, LeaseHandler leaseHandler)
     {
         
         return new Server
@@ -177,7 +177,7 @@ class Program
                 ClientTransactionService.BindService(clientTxServiceImpl),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
                 LeaseResponseService.BindService(lmServiceImpl),
-                TmService.BindService(new TransactionManagerPropagateServiceImpl(tmState, tmPropagateService))
+                TmService.BindService(new TransactionManagerPropagateServiceImpl(tmState, tmPropagateService, leaseHandler))
             },
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
