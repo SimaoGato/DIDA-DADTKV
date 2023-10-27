@@ -69,17 +69,6 @@ namespace TransactionManager
                     requestToPush.AddObjectToWrite(key, value);
                 }
                 
-                // TO TEST CLIENT RESUBMISSION OF TRANSACTION
-                // TransactionResponse ABORT = new TransactionResponse();
-                //
-                // ABORT.ObjectsRead.Add(new DadInt
-                // {
-                //     Key = "abort",
-                //     Value = 0
-                // });
-                //
-                // return ABORT;
-                
                 requestToPush.AddObjectLockNeeded();
                 
                 // Push request to queue

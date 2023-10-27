@@ -8,21 +8,24 @@ namespace TransactionManager
     {
         private readonly Dictionary<string, GrpcChannel> _transactionManagersGrpcChannels = new ();
         private Dictionary<string, TmService.TmServiceClient> _transactionManagersStubs = new ();
-        private Dictionary<string, string> _tmNickMap;
+        //private Dictionary<string, string> _tmNickMap;
         private List<List<string>> _suspectedList;
         private string _tmNick;
 
         public TransactionManagerPropagateService(Dictionary<string, string> tmNickMap, string tmNick)
         {
-            _tmNickMap = tmNickMap;
+            //_tmNickMap = tmNickMap;
             _tmNick = tmNick;
             foreach (var tm in tmNickMap)
             {
                 try
                 {
-                    var channel = GrpcChannel.ForAddress(tm.Value);
-                    _transactionManagersGrpcChannels.Add(tm.Value, channel);
-                    _transactionManagersStubs.Add(tm.Value, new TmService.TmServiceClient(channel));
+                    if (tmNick != tm.Key)
+                    {
+                        var channel = GrpcChannel.ForAddress(tm.Value);
+                        _transactionManagersGrpcChannels.Add(tm.Value, channel);
+                        _transactionManagersStubs.Add(tm.Value, new TmService.TmServiceClient(channel));
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -46,13 +49,17 @@ namespace TransactionManager
             }
         }
 
-        public async void BroadcastTransaction(Dictionary<string, long> transaction)
+        public async void BroadcastTransaction(Dictionary<string, long> transactions)
         {
+            if (transactions.Count == 0) return;
+            
             var request = new Transaction();
-            foreach (var dadInt in transaction)
+            foreach (var dadInt in transactions)
             {
                 request.Transactions.Add(new DadIntObj {Key = dadInt.Key, Value = dadInt.Value});
             }
+
+            var abortFlag = true;
             foreach (var tmStub in _transactionManagersStubs)
             {
                 try
@@ -62,18 +69,20 @@ namespace TransactionManager
                         var response = await tmStub.Value.PropagateTransactionAsync(request);
                         Console.WriteLine(
                             $"[TransactionManagerPropagateService] Transaction Response from tm {tmStub.Key}: {response.Ack}");
+                        if (response.Ack) abortFlag = false;
                     }
                     else
                     {
-                        Console.WriteLine("is suspected");
+                        Console.WriteLine("TM is suspected or crashed");
                     }
-                    // TODO WHAT TO DO WITH THE RESPONSE
                 }
                 catch (Exception)
                 {
                     Console.WriteLine($"Error while making BroadcastTransaction call");
                 }
             }
+
+            //return abortFlag;
         }
 
         public async void BroadcastLease()
@@ -106,6 +115,7 @@ namespace TransactionManager
 
         public void CreateSuspectedList(string suspects)
         {
+            if (suspects.Length == 0) return;
             var parts = suspects.Split("+");
             foreach (var part in parts)
             {

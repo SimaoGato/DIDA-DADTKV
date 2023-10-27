@@ -4,19 +4,22 @@ public class ClientRequestHandler
 {
     Queue<Request> _requestQueue = new Queue<Request>();
     TransactionManagerState _transactionManagerState;
-    private Dictionary<string, ManualResetEvent> transactionSignals = new Dictionary<string, ManualResetEvent>();
+    private Dictionary<string, ManualResetEvent> transactionSignals = new ();
     public bool isUpdating { get; set; }
     public bool isCrashed { get; set; }
     public ManualResetEvent canClose { get; set; }
     public LeaseHandler _leaseHandler;
+    private TransactionManagerPropagateService _tmPropagateService;
     
-    public ClientRequestHandler(TransactionManagerState transactionManagerState, LeaseHandler leaseHandler)
+    public ClientRequestHandler(TransactionManagerState transactionManagerState, LeaseHandler leaseHandler, 
+                                TransactionManagerPropagateService tmPropagateService)
     {
         _transactionManagerState = transactionManagerState;
         isUpdating = false;
         isCrashed = false;
         canClose = new ManualResetEvent(false);
         _leaseHandler = leaseHandler;
+        _tmPropagateService = tmPropagateService;
     }
     
     public ManualResetEvent WaitForTransaction(string transactionId)
@@ -68,7 +71,7 @@ public class ClientRequestHandler
         return _requestQueue.Count == 0;
     }
     
-    public void ExecuteTransaction()
+    public Dictionary<string, long> ExecuteTransaction()
     {
         Request requestToExecute = PopRequest();
         var transactionId = requestToExecute.TransactionId;
@@ -86,14 +89,18 @@ public class ClientRequestHandler
                 requestToExecute.AddTransactionResult(dadInt);
             }
         }
+
+        var transactionsToBroadcast = new Dictionary<string, long>();
         foreach (var dadInt in objectsToWrite)
         {
             string key = dadInt.Key;
             long value = dadInt.Value;
             
             _transactionManagerState.WriteOperation(key, value);
+            transactionsToBroadcast.Add(key, value);
         }
         NotifyTransactionCompletion(transactionId);
+        return transactionsToBroadcast;
     }
     
     public void AbortAllTransactions()
@@ -120,7 +127,7 @@ public class ClientRequestHandler
         }
     }
 
-    public void ProcessTransactions()
+    public async void ProcessTransactions()
     {
         try
         {
@@ -139,15 +146,20 @@ public class ClientRequestHandler
                     _leaseHandler.WaitForLease().WaitOne();
                     _leaseHandler.ResetLeaseSignal();
                     
-                    while (isUpdating)
-                    {
-                        Thread.Sleep(250);
-                        Console.WriteLine("Waiting for update to finish");
-                    }
+                    // while (isUpdating)
+                    // {
+                    //     Thread.Sleep(250);
+                    //     Console.WriteLine("Waiting for update to finish");
+                    // }
 
                     if (!isCrashed)
                     {
-                        ExecuteTransaction();
+                        var transactions = ExecuteTransaction();
+                        if (transactions.Count != 0)
+                        {
+                            _tmPropagateService.BroadcastTransaction(transactions);
+                        }
+
                         _leaseHandler.TransactionFinished();
                     }
                 }

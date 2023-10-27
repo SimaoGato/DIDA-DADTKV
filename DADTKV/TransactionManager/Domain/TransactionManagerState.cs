@@ -15,7 +15,7 @@ namespace TransactionManager
                 try
                 {
                     // Console transaction that is being made
-                    //Console.WriteLine($"[TransactionManagerState] Writing object: {key} with value {value}");
+                    Console.WriteLine($"[TransactionManagerState] Writing object: {key} with value {value}");
                     _dataStorage[key] = value;
                 }
                 catch (Exception ex)
@@ -55,10 +55,10 @@ namespace TransactionManager
             {
                 try
                 {
-                    //Console.WriteLine("[TransactionManagerState] Objects in data storage:");
+                    Console.WriteLine("[TransactionManagerState] Objects in data storage:");
                     foreach (var key in _dataStorage.Keys)
                     {
-                        //Console.WriteLine($"[TransactionManagerState] Key: {key}, Value: {_dataStorage[key]}");
+                        Console.WriteLine($"Key: {key}, Value: {_dataStorage[key]}");
                     }
                 }
                 catch (Exception ex)
@@ -75,6 +75,21 @@ namespace TransactionManager
                 try
                 {
                     return _dataStorage.ContainsKey(key);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error checking if key '{key}' exists: {ex.Message}");
+                }   
+            }
+        }
+
+        public bool ContainsDadInt(string key, long value)
+        {
+            lock (_dataStorage)
+            {
+                try
+                {
+                    return _dataStorage.TryGetValue(key, out var dadIntValue) && dadIntValue == value;
                 }
                 catch (Exception ex)
                 {

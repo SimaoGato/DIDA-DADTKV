@@ -9,9 +9,15 @@ namespace TransactionManager
 {
     public class TransactionManagerPropagateServiceImpl : TmService.TmServiceBase
     {
-        public TransactionManagerPropagateServiceImpl()
-        {
+        private readonly TransactionManagerState _transactionManagerState;
+        private TransactionManagerPropagateService _tmPropagateService;
+        private Dictionary<string, long> _transactionsToPropagate = new ();
             
+        public TransactionManagerPropagateServiceImpl(TransactionManagerState transactionManagerState, 
+                                                        TransactionManagerPropagateService tmPropagateService)
+        {
+            _transactionManagerState = transactionManagerState;
+            _tmPropagateService = tmPropagateService;
         }
 
         public override Task<PropagateResponse> PropagateTransaction(Transaction request, ServerCallContext context)
@@ -30,11 +36,43 @@ namespace TransactionManager
         {
             try
             {
-                // if message not in delivered_messages
-                // save to state
-                // message to true in delivered_messages
-                // broadcast state modification
-                return (new PropagateResponse { Ack = true });
+                lock (this)
+                {
+                    Console.WriteLine("[PropagateServiceImpl] TM received propagate transactions");
+                    _transactionsToPropagate.Clear();
+                    foreach (var transaction in request.Transactions)
+                    {
+                        if (!_transactionManagerState.ContainsDadInt(transaction.Key, transaction.Value))
+                        {
+                            Console.Write("hi: " + transaction.Key);
+                            _transactionManagerState.WriteOperation(transaction.Key, transaction.Value);
+                            _transactionsToPropagate.Add(transaction.Key, transaction.Value);
+                        }
+                    }
+
+                    Console.WriteLine();
+                    _transactionManagerState.PrintObjects();
+                    Thread.Sleep(1000);
+
+                    Console.Write("[PropagateServiceImpl] TM broadcast saved transactions: ");
+                    foreach (var x in _transactionsToPropagate)
+                    {
+                        Console.Write(x.Key + "-" + x.Value + "//");
+                    }
+
+                    Console.WriteLine();
+
+                }
+                if (_transactionsToPropagate.Count == 0) Console.WriteLine("nothing to propagate");
+
+                if (_transactionsToPropagate.Count != 0)
+                {
+                    _tmPropagateService.BroadcastTransaction(_transactionsToPropagate);
+                }
+
+                // TODO USE ABORTFLAG
+                _transactionsToPropagate.Clear(); // clear transactions to propagate
+                return new PropagateResponse { Ack = true };
             }
             catch (Exception)
             {

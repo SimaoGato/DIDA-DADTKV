@@ -47,7 +47,7 @@ class Program
         {
             Services =
             {
-                LeaseService.BindService(new TransactionManagerServiceImpl(_lmState)),
+                LeaseService.BindService(new TransactionManagerLeaseServiceImpl(_lmState)),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(_lmNick)),
                 PaxosService.BindService(_acceptor)
             }, 

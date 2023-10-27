@@ -89,23 +89,23 @@ class Program
             Uri tmUri = new Uri(tmUrl);
             Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
 
-            var transactionManagerLeaseService = new TransactionManagerLeaseService(lmServers);
-            var transactionManagerPropagateService = new TransactionManagerPropagateService(tmNickMap, tmNick);
+            var tmLeaseService = new TransactionManagerLeaseService(lmServers);
+            var tmPropagateService = new TransactionManagerPropagateService(tmNickMap, tmNick);
 
             ManualResetEvent leaseReceivedSignal = new ManualResetEvent(false);
             
-            LeaseHandler leaseHandler = new LeaseHandler(tmNick, transactionManagerLeaseService, leaseReceivedSignal);
+            LeaseHandler leaseHandler = new LeaseHandler(tmNick, tmLeaseService, leaseReceivedSignal);
 
             LeaseManagerServiceImpl lmServiceImpl =
                 new LeaseManagerServiceImpl(tmNick, tmState, lmServers.Count, leaseHandler, leaseReceivedSignal);
             
-            ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState, leaseHandler);
+            ClientRequestHandler clientRequestHandler = new ClientRequestHandler(tmState, leaseHandler, tmPropagateService);
 
             ClientTxServiceImpl clientTxServiceImpl =
-                new ClientTxServiceImpl(tmNick, transactionManagerLeaseService, tmState, clientRequestHandler);
+                new ClientTxServiceImpl(tmNick, tmLeaseService, tmState, clientRequestHandler);
 
-            Server server = ConfigureServer(tmNick, transactionManagerLeaseService, tmState, tmUri.Host, 
-                tmUri.Port, lmServers.Count, lmServiceImpl, clientTxServiceImpl);
+            Server server = ConfigureServer(tmNick, tmLeaseService, tmState, tmUri.Host, 
+                tmUri.Port, lmServers.Count, tmPropagateService, lmServiceImpl, clientTxServiceImpl);
 
             server.Start();
             
@@ -126,11 +126,11 @@ class Program
             {
                 clientTxServiceImpl.isUpdating = true;
                 clientRequestHandler.isUpdating = true;
-                for (int i = 0; i < slotBehavior.Count(); i++)
+                for (int i = 0; i < slotBehavior.Count; i++)
                 {
                     if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
                     {
-                        UpdateSlotBehavior(slotBehavior[i], transactionManagerLeaseService, transactionManagerPropagateService);
+                        UpdateSlotBehavior(slotBehavior[i], tmLeaseService, tmPropagateService);
                         break;
                     }
                 }
@@ -150,7 +150,7 @@ class Program
             
             clientRequestHandlerThread.Interrupt();
             
-            transactionManagerLeaseService.CloseLeaseManagerStubs();
+            tmLeaseService.CloseLeaseManagerStubs();
             
             server.ShutdownAsync().Wait();
             
@@ -161,12 +161,12 @@ class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"An error occurred: {ex.Message}");
+            Console.WriteLine($"1 An error occurred: {ex.Message}");
         }
     }
 
     private static Server ConfigureServer(string tmNick, TransactionManagerLeaseService transactionManagerLeaseService,
-        TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm, 
+        TransactionManagerState tmState, string tmHost, int tmPort, int numberOfLm, TransactionManagerPropagateService tmPropagateService,
         LeaseManagerServiceImpl lmServiceImpl, ClientTxServiceImpl clientTxServiceImpl)
     {
         
@@ -177,7 +177,7 @@ class Program
                 ClientTransactionService.BindService(clientTxServiceImpl),
                 ClientStatusService.BindService(new ClientStatusServiceImpl(tmNick)),
                 LeaseResponseService.BindService(lmServiceImpl),
-                TmService.BindService(new TransactionManagerPropagateServiceImpl())
+                TmService.BindService(new TransactionManagerPropagateServiceImpl(tmState, tmPropagateService))
             },
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
