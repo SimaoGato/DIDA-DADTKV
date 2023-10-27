@@ -40,6 +40,13 @@ public class Acceptor : PaxosService.PaxosServiceBase
         }
         
         Promise promise = new Promise();
+        
+        if (prepare.Round > _round)
+        {
+            _IDp = -1;
+            _IDa = -1;
+            _round = prepare.Round;
+        }
 
         if (prepare.Round < _round) // Proposer is in an older round
         {

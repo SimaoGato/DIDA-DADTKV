@@ -69,7 +69,7 @@ public class Proposer
                     _value = UpdateValue(promise); // Yes, update value
                     _IDa = promise.IDa; 
                 }
-                _roundReceived = promise.Round;
+                _roundReceived = Math.Max(promise.Round, _roundReceived);
             }
             else if (promise.IDp == -2) // Receive a ignore response due to suspect
             {
@@ -147,7 +147,7 @@ public class Proposer
             }
             else // Acceptors were in the same round as me
             {
-                Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value));
+                Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value) + " by IDA: " + _IDa);
                 _lmService.SendLeases(_round, _value);
                 _lmState.RemoveLeases(_value);
                 _round++; 
