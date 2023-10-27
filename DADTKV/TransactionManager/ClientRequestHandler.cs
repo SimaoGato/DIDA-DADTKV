@@ -146,18 +146,18 @@ public class ClientRequestHandler
                     _leaseHandler.WaitForLease().WaitOne();
                     _leaseHandler.ResetLeaseSignal();
                     
-                    // while (isUpdating)
-                    // {
-                    //     Thread.Sleep(250);
-                    //     Console.WriteLine("Waiting for update to finish");
-                    // }
+                    while (isUpdating)
+                    {
+                        Thread.Sleep(250);
+                        Console.WriteLine("Waiting for update to finish");
+                    }
 
                     if (!isCrashed)
                     {
                         var transactions = ExecuteTransaction();
                         if (transactions.Count != 0)
                         {
-                            _tmPropagateService.BroadcastTransaction(transactions);
+                            _tmPropagateService.BroadcastTransaction(transactionId, transactions);
                         }
 
                         _leaseHandler.TransactionFinished();

@@ -6,7 +6,6 @@ namespace TransactionManager
     public class TransactionManagerState
     {
         private readonly Dictionary<string, long> _dataStorage = new Dictionary<string, long>();
-        private List<List<List<string>>> _leasesPerLeaseManager = new List<List<List<string>>>();
 
         public void WriteOperation(string key, long value)
         {
@@ -14,8 +13,7 @@ namespace TransactionManager
             {
                 try
                 {
-                    // Console transaction that is being made
-                    Console.WriteLine($"[TransactionManagerState] Writing object: {key} with value {value}");
+                    // if have key, update value. Else, add key and value
                     _dataStorage[key] = value;
                 }
                 catch (Exception ex)
@@ -96,32 +94,6 @@ namespace TransactionManager
                     throw new Exception($"Error checking if key '{key}' exists: {ex.Message}");
                 }   
             }
-        }
-
-        public void ReceiveLeases(List<List<string>> leases)
-        {
-            try
-            {
-                _leasesPerLeaseManager.Add(leases);
-                // TODO: Implement lease order consensus check
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error receiving leases: {ex.Message}");
-            }
-        }
-        
-        // method to return leasesPerLeaseManager
-        public List<List<List<string>>> GetLeasesPerLeaseManager()
-        {
-            return _leasesPerLeaseManager;
-        }
-        
-        // method to clear leasesPerLeaseManager
-        public void ClearLeasesPerLeaseManager()
-        {
-            _leasesPerLeaseManager.Clear();
-            //Console.WriteLine($"[TransactionManagerState] cleared leasesPerLeaseManager");
         }
     }
 }

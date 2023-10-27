@@ -12,6 +12,7 @@ namespace TransactionManager
         private readonly TransactionManagerState _transactionManagerState;
         private TransactionManagerPropagateService _tmPropagateService;
         private Dictionary<string, long> _transactionsToPropagate = new ();
+        private List<string> _transactionsReceived = new ();
             
         public TransactionManagerPropagateServiceImpl(TransactionManagerState transactionManagerState, 
                                                         TransactionManagerPropagateService tmPropagateService)
@@ -39,39 +40,28 @@ namespace TransactionManager
                 lock (this)
                 {
                     Console.WriteLine("[PropagateServiceImpl] TM received propagate transactions");
-                    _transactionsToPropagate.Clear();
-                    foreach (var transaction in request.Transactions)
+                    
+                    var transactionId = request.TransactionId;
+                    if (!_transactionsReceived.Contains(transactionId))
                     {
-                        if (!_transactionManagerState.ContainsDadInt(transaction.Key, transaction.Value))
+                        Console.WriteLine($"[PropagateServiceImpl] TM received propagate transactions for the first time");
+                        _transactionsReceived.Add(transactionId);
+                        var transactionToPropagate = new Dictionary<string, long>();
+                        foreach (var transaction in request.Transactions)
                         {
-                            Console.Write("hi: " + transaction.Key);
                             _transactionManagerState.WriteOperation(transaction.Key, transaction.Value);
-                            _transactionsToPropagate.Add(transaction.Key, transaction.Value);
+                            transactionToPropagate.Add(transaction.Key, transaction.Value);
                         }
+                        
+                        _tmPropagateService.BroadcastTransaction(transactionId, transactionToPropagate);
                     }
-
-                    Console.WriteLine();
-                    _transactionManagerState.PrintObjects();
-                    Thread.Sleep(1000);
-
-                    Console.Write("[PropagateServiceImpl] TM broadcast saved transactions: ");
-                    foreach (var x in _transactionsToPropagate)
+                    else
                     {
-                        Console.Write(x.Key + "-" + x.Value + "//");
+                        Console.WriteLine($"[PropagateServiceImpl] TM already received propagate transactions");
                     }
-
-                    Console.WriteLine();
-
+                    
                 }
-                if (_transactionsToPropagate.Count == 0) Console.WriteLine("nothing to propagate");
-
-                if (_transactionsToPropagate.Count != 0)
-                {
-                    _tmPropagateService.BroadcastTransaction(_transactionsToPropagate);
-                }
-
                 // TODO USE ABORTFLAG
-                _transactionsToPropagate.Clear(); // clear transactions to propagate
                 return new PropagateResponse { Ack = true };
             }
             catch (Exception)

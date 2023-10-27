@@ -49,11 +49,12 @@ namespace TransactionManager
             }
         }
 
-        public async void BroadcastTransaction(Dictionary<string, long> transactions)
+        public async void BroadcastTransaction(string transactionId, Dictionary<string, long> transactions)
         {
             if (transactions.Count == 0) return;
             
             var request = new Transaction();
+            request.TransactionId = transactionId;
             foreach (var dadInt in transactions)
             {
                 request.Transactions.Add(new DadIntObj {Key = dadInt.Key, Value = dadInt.Value});

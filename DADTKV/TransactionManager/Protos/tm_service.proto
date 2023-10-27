@@ -15,6 +15,7 @@ message PropagateResponse {
 
 message Transaction {
     repeated DadIntObj transactions = 1;
+    string transactionId = 2;
 }
 
 message DadIntObj {
