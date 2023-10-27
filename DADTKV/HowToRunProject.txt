@@ -1,0 +1,8 @@
+Como correr o projeto
+
+1. Abrir visual studio
+2. Escolher solução com nome DADTKV.sln
+3. Pôr o ficheiro system configuration e os scripts do cliente dentro da pasta do projeto "SystemConfiguration"
+4. Em "Propriedades de Depuração de SystemConfiguration" escrever em "Argumentos da linha de comando" o nome do script de configuração a ser corrido
+5. Compilar a solução
+6. Lançar o Program do SystemConfiguration

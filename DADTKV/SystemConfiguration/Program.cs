@@ -51,8 +51,12 @@ class Program
                     config.SlotDuration = int.Parse(parts[1]);
                     break;
                 case "T":
+                    // Uncomment to use the specified start time
+                    // DateTime startTime = DateTime.ParseExact(parts[1], "HH:mm:ss", null);
+                    
+                    // Uncomment to use the current time plus the specified delay
                     DateTime currentDate = DateTime.Now;
-                    DateTime startTime = currentDate.AddSeconds(8);
+                    DateTime startTime = currentDate.AddSeconds(20);
                     config.StartTime = startTime;
                     break;
                 case "F":
