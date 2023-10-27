@@ -87,7 +87,7 @@ public class Proposer
             }
             else // If not, update buffer and move to the next round
             {
-                Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value));
+                Console.WriteLine("(Proposer ID: {0}): Value decided for previous Round {1}: {2}", _IDp, _round, PrintLease(_value));
                 _lmState.RemoveLeases(_value);
                 _round++;
                 PrepareForNextEpoch();
@@ -137,16 +137,17 @@ public class Proposer
         // Check majority
         if (count > _nServers / 2)
         {
-            Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value));
-            if (_round < _roundReceived) // Acceptors actually was in a higher round
+            if (_round < _roundReceived) // Acceptors actually were in a higher round
             {
+                Console.WriteLine("(Proposer ID: {0}): Value decided for previous Round {1}: {2}", _IDp, _round, PrintLease(_value));
                 _lmState.RemoveLeases(_value);
                 _round++;
                 PrepareForNextEpoch();
                 PhaseOne();
             }
-            else // Acceptors was in the same round as me
+            else // Acceptors were in the same round as me
             {
+                Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value));
                 _lmService.SendLeases(_round, _value);
                 _lmState.RemoveLeases(_value);
                 _round++; 
