@@ -102,11 +102,6 @@ namespace TransactionManager
                     slotBehavior.Add(keyValuePair);
                 }
             }
-            // Console.WriteLine("Slot behavior: ");
-            foreach (var behavior in slotBehavior)
-            {
-                Console.WriteLine(behavior.Key + " " + behavior.Value);
-            }
             return slotBehavior;
         }
     }

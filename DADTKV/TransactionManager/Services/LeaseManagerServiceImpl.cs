@@ -62,6 +62,7 @@ namespace TransactionManager
                 {
                     if (request.Round == _round)
                     { 
+                        Console.WriteLine($"[LeaseManagerServiceImpl] Received leases from Paxos round {_round}.");
                         var leases = request.Leases.Select(lease => lease.Value.ToList()).ToList();
                         _leaseHandler.ReceiveLeases(leases);
                         _leaseReceivedSignal.Set();

@@ -63,6 +63,40 @@ namespace TransactionManager
             }
         }
         
+        public override Task<PropagateResponse> ReleaseLease(ObjectsNeeded request, ServerCallContext context)
+        {
+            try
+            {
+                return Task.FromResult(DoReleaseLease(request));
+            }
+            catch (Exception)
+            {
+                return Task.FromResult(new PropagateResponse { Ack = false });
+            }
+        }
+        
+        private PropagateResponse DoReleaseLease(ObjectsNeeded request)
+        {
+            try
+            {
+                lock (this)
+                {
+                    var objectsToRelease = new List<string>();
+                    foreach (var obj in request.DadInt)
+                    {
+                        objectsToRelease.Add(obj);
+                    }
+                    Console.WriteLine($"[TransactionManagerPropagateServiceImpl] Forced to release lease for objects: {string.Join(", ", objectsToRelease)}");
+                    _leaseHandler.ReleaseLease(objectsToRelease);
+                }
+                return new PropagateResponse { Ack = true };
+            }
+            catch (Exception)
+            {
+                return new PropagateResponse { Ack = false };
+            }
+        }
+        
         public override Task<PropagateResponse> PropagateLease(Lease request, ServerCallContext context)
         {
             try
@@ -91,6 +125,7 @@ namespace TransactionManager
                             objectsToPropagate.Add(obj);
                         }
                         _leaseHandler.RemoveLease(objectsToPropagate);
+                        _leaseHandler._LeaseReleased = true;
                         _leaseHandler.SetLeaseReleasedSignal();
                         _tmPropagateService.BroadcastLeaseReleased(leaseId, objectsToPropagate);
                     }

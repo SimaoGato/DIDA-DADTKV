@@ -53,7 +53,6 @@ namespace TransactionManager
                 try
                 {
                     var response = lmStub.Value.RequestLease(request);
-                    //Console.WriteLine($"[TransactionManagerService] Response from lm {lmStub.Key}: {response.Ack}");
                     if (!response.Ack)
                     {
                         return false;

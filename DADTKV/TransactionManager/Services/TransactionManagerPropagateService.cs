@@ -14,10 +14,12 @@ namespace TransactionManager
         private string _tmNick;
         private int _majorityCount;
         private ManualResetEvent _majorityResponseSignal = new ManualResetEvent(false);
+        private Dictionary<string, string> _tmNickMap;
 
         public TransactionManagerPropagateService(Dictionary<string, string> tmNickMap, string tmNick)
         {
             _suspectedList = new List<List<string>>();
+            _tmNickMap = tmNickMap;
             _tmNick = tmNick;
             foreach (var tm in tmNickMap)
             {
@@ -123,6 +125,7 @@ namespace TransactionManager
                             if (responseCount >= _majorityCount)
                             {
                                 NotifyMajorityResponse();
+                                responseCount = 0;
                             }
                         }
                     }
@@ -188,8 +191,44 @@ namespace TransactionManager
             _transactionManagersGrpcChannels[tmServerAddress].ShutdownAsync().Wait();
             _transactionManagersGrpcChannels.Remove(tmServerAddress);
             _transactionManagersStubs.Remove(tmServerAddress);
+            // tmServerAddress is the value. Grab the key
+            var tmNick = "";
+            foreach (var tm in _tmNickMap)
+            {
+                if (tm.Value == tmServerAddress)
+                {
+                    tmNick = tm.Key;
+                    break;
+                }
+            }
         }
 
+        public void ReleaseLease(string tmNick, List<string> objects)
+        {
+            // print objects
+            Console.WriteLine($"[TransactionManagerPropagateService] Forcing {tmNick} release of lease for objects: {string.Join(",", objects)}");
+            var url = _tmNickMap[tmNick];
+            var tmStub = _transactionManagersStubs[url];
+            var request = new ObjectsNeeded
+            {
+                DadInt = { objects }
+            };
+            var response = tmStub.ReleaseLease(request);
+            Console.WriteLine($"[TransactionManagerPropagateService] ReleaseLease response from tm {tmNick}: {response.Ack}");
+        }
+
+        public void RemoveTransactionFromRequestedLeases(string transactionId)
+        {
+            lock (_leaseReleasedReceived)
+            {
+                if (_leaseReleasedReceived.Contains(transactionId))
+                {
+                    Console.WriteLine($"[TransactionManagerPropagateService] Removing transaction {transactionId} from requested leases");
+                    _leaseReleasedReceived.Remove(transactionId);
+                }
+            }
+        }
+        
         public void CreateSuspectedList(string suspects)
         {
             if (suspects.Length == 0) return;

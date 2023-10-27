@@ -48,7 +48,7 @@ namespace TransactionManager
             try
             {
                 string clientId = request.ClientId;
-                string uniqueTransactionId = clientId + "-" + System.Guid.NewGuid().ToString();
+                string uniqueTransactionId = clientId + "-" + Guid.NewGuid().ToString();
                 
                 Console.WriteLine("[ClientServiceImpl] Received transaction request from client {0}", clientId);
                 
@@ -80,6 +80,8 @@ namespace TransactionManager
                 TransactionResponse response = new TransactionResponse();
                 
                 response.ObjectsRead.AddRange(requestToPush.TransactionResult);
+                
+                Console.WriteLine("[ClientServiceImpl] Transaction of client {0} executed", clientId);
 
                 return response;
             }

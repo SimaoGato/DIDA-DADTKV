@@ -3,6 +3,11 @@
 service TmService {
     rpc PropagateLease (Lease) returns (PropagateResponse);
     rpc PropagateTransaction (Transaction) returns (PropagateResponse);
+    rpc ReleaseLease (ObjectsNeeded) returns (PropagateResponse);
+}
+
+message ObjectsNeeded {
+    repeated string dadInt = 1;
 }
 
 message Lease {

@@ -84,10 +84,7 @@ class Program
 
             TransactionManagerState tmState = new TransactionManagerState();
 
-            PrintConfigurationDetails(tmNick, tmUrl, tmId, tmServers, lmServers, slotBehavior, timeSlots, slotDuration);
-
             Uri tmUri = new Uri(tmUrl);
-            Console.WriteLine($"{tmUri.Host}-{tmUri.Port}");
 
             var tmLeaseService = new TransactionManagerLeaseService(lmServers);
             var tmPropagateService = new TransactionManagerPropagateService(tmNickMap, tmNick);
@@ -110,8 +107,8 @@ class Program
             server.Start();
             
             var currentTimeslot = 1;
-
-            Console.WriteLine($"Starting Transaction Manager on port: {tmUri.Port}");
+            
+            Console.WriteLine($"Starting Transaction Manager with Nick {tmNick} and url {tmUrl}\n");
 
             // Create a new thread and start the printing
             Thread clientRequestHandlerThread = new Thread(clientRequestHandler.ProcessTransactions);
@@ -119,7 +116,7 @@ class Program
             
             TimeSpan timeToStart = startTime - DateTime.Now;
             int msToWait = (int)timeToStart.TotalMilliseconds;
-            Console.WriteLine($"Starting in {timeToStart} s");
+            Console.WriteLine($"Starting in {timeToStart} s\n");
             Thread.Sleep(msToWait);
             
             while(currentTimeslot <= timeSlots)
@@ -130,20 +127,20 @@ class Program
                 {
                     if (slotBehavior[i].Key[0] == currentTimeslot.ToString()[0])
                     {
-                        UpdateSlotBehavior(slotBehavior[i], tmLeaseService, tmPropagateService);
+                        UpdateSlotBehavior(slotBehavior[i], tmLeaseService, tmPropagateService, leaseHandler);
                         break;
                     }
                 }
                 if (!_isRunning)
                 {
-                    Console.WriteLine($"Slot {currentTimeslot} crashed");
+                    Console.WriteLine($"\nSlot {currentTimeslot} crashed\n");
                     clientRequestHandler.isCrashed = true;
                     clientRequestHandler.canClose.WaitOne();
                     break;
                 }
                 clientTxServiceImpl.isUpdating = false;
                 clientRequestHandler.isUpdating = false;
-                Console.WriteLine($"Slot {currentTimeslot} started");
+                Console.WriteLine($"\nSlot {currentTimeslot} started\n");
                 Thread.Sleep(slotDuration);
                 currentTimeslot++;
             }
@@ -161,7 +158,7 @@ class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"1 An error occurred: {ex.Message}");
+            Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
 
@@ -182,28 +179,9 @@ class Program
             Ports = { new ServerPort(tmHost, tmPort, ServerCredentials.Insecure) }
         };
     }
-    private static void PrintConfigurationDetails(string tmNick, string tmUrl, int tmId, List<string> tmServers, List<string> lmServers,
-        List<KeyValuePair<string, string>> slotBehavior, int timeSlots, int slotDuration)
-    {
-        Console.WriteLine("tmNick: " + tmNick);
-        Console.WriteLine("tmUrl: " + tmUrl);
-        Console.WriteLine("tmId: " + tmId);
-        Console.WriteLine("TmServers: ");
-        Console.WriteLine(string.Join(Environment.NewLine, tmServers));
-        Console.WriteLine("LmServers: ");
-        Console.WriteLine(string.Join(Environment.NewLine, lmServers));
-        Console.WriteLine("slotBehavior: ");
-        foreach (var slot in slotBehavior)
-        {
-            Console.WriteLine($"{slot.Key}-{slot.Value}");
-        }
-        Console.WriteLine("timeSlots: " + timeSlots);
-        Console.WriteLine("slotDuration: " + slotDuration);
-        Console.WriteLine("----------");
-    }
     
     private void UpdateSlotBehavior(KeyValuePair<string, string> slot, TransactionManagerLeaseService transactionManagerLeaseService, 
-                                    TransactionManagerPropagateService transactionManagerPropagateService)
+                                    TransactionManagerPropagateService transactionManagerPropagateService, LeaseHandler leaseHandler)
     {
         var crashes = slot.Key;
         var suspects = slot.Value;
@@ -222,7 +200,7 @@ class Program
                 }
                 else
                 {
-                    RemoveCrashedTransactionServer(i, transactionManagerPropagateService);
+                    RemoveCrashedTransactionServer(i, transactionManagerPropagateService, leaseHandler);
                 }
             }
         }
@@ -245,14 +223,13 @@ class Program
                 if (sourceServer == tmNick && tmNicks.Contains(targetServer))
                 {
                     Console.WriteLine($"Suspecting tm {targetServer}");
-                    // someService.SuspectTransactionManager(tmNickMap[targetServer]);
                 }
             }
         }
 
     }
     
-    private void RemoveCrashedTransactionServer(int id, TransactionManagerPropagateService transactionManagerPropagateService)
+    private void RemoveCrashedTransactionServer(int id, TransactionManagerPropagateService transactionManagerPropagateService, LeaseHandler leaseHandler)
     {
         var crashedServer = tmServersIdMap.Find(x => x.Key == id).Value;
         tmServers.Remove(crashedServer);
@@ -261,7 +238,6 @@ class Program
         tmNickMap.Remove(crashedServerNick);
         tmNicks.Remove(crashedServerNick);
         transactionManagerPropagateService.RemoveTransactionManagerStub(crashedServer);
-
     }
 
     public void RemoveCrashedLeaseServer(int id, TransactionManagerLeaseService transactionManagerLeaseService)

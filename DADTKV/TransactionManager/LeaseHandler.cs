@@ -10,9 +10,12 @@ public class LeaseHandler
     private TransactionManagerLeaseService _transactionManagerLeaseService;
     private ManualResetEvent _leaseReceivedSignal;
     private ManualResetEvent _transactionSignal = new ManualResetEvent(false);
-    private List<KeyValuePair<string, List<string>>> _ownedLeases = new List<KeyValuePair<string, List<string>>>();
     private TransactionManagerPropagateService _transactionManagerPropagateService;
     private ManualResetEvent _leaseReleasedSignal = new ManualResetEvent(false);
+    
+    private bool _SignalGiven { get; set; }
+    public bool _TimeoutExcedded { get; set; }
+    public bool _LeaseReleased { get; set; }
         
     public LeaseHandler(string tmNick, TransactionManagerLeaseService transactionManagerLeaseService, 
         ManualResetEvent leaseReceivedSignal, TransactionManagerPropagateService transactionManagerPropagateService)
@@ -23,7 +26,7 @@ public class LeaseHandler
         _transactionManagerPropagateService = transactionManagerPropagateService;
     }
 
-    public void PushObjectQueue(string objectKey, string tmNick)
+    private void PushObjectQueue(string objectKey, string tmNick)
     {
         _objectsQueue.TryGetValue(objectKey, out var queue);
         if (queue == null)
@@ -34,7 +37,7 @@ public class LeaseHandler
         queue.Enqueue(tmNick);
     }
     
-    public void PopObjectQueue(string objectKey)
+    private void PopObjectQueue(string objectKey)
     {
         _objectsQueue.TryGetValue(objectKey, out var queue);
         if (queue != null)
@@ -78,59 +81,137 @@ public class LeaseHandler
         return hasRequested;
     }
     
-    private void AddOwnLease(string transactionId, List<string> objectsLockNeeded)
+    public bool HasToRequestLease(List<string> objectsLockNeeded)
     {
-        _ownedLeases.Add(new KeyValuePair<string, List<string>>(transactionId, objectsLockNeeded));
+        foreach (var objectKey in objectsLockNeeded)
+        {
+            _objectsQueue.TryGetValue(objectKey, out var queue);
+            
+            if (queue == null || queue.Count == 0)
+            {
+                return true;
+            }
+
+            if (queue != null && !queue.Contains(_tmNick))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
     
     public void AskForPermissionToExecuteTransaction(string transactionId, List<string> objectsLockNeeded)
     {
         var canExecute = false;
+        _SignalGiven = false;
+        _TimeoutExcedded = false;
+        _LeaseReleased = false;
         do
         {
             if(HasPermissionsToExecuteTransaction(objectsLockNeeded))
             {
-                AddOwnLease(transactionId, objectsLockNeeded);
-                // Timeout.Stop();
                 canExecute = true;
             }
             else
             {
-                if (!HasAlreadyRequestedLease(transactionId))
+                if (HasToRequestLease(objectsLockNeeded))
                 {
+                    _transactionManagerPropagateService.RemoveTransactionFromRequestedLeases(transactionId);
                     RequestLease(transactionId, objectsLockNeeded);
                     WaitForPaxosResultSignal(transactionId);
                 }
                 if(HasPermissionsToExecuteTransaction(objectsLockNeeded))
                 {
-                    AddOwnLease(transactionId, objectsLockNeeded);
-                    // Timeout.Stop();
                     canExecute = true;
                 }
                 else
                 {
-                    _leaseReleasedSignal.WaitOne();
-                    _leaseReleasedSignal.Reset();
+                    _SignalGiven = false;
+
+                    Task.Run(() => LeaseTimer());
+
+                    while (!_TimeoutExcedded && !_LeaseReleased)
+                    {
+                        _leaseReleasedSignal.WaitOne();
+                        _leaseReleasedSignal.Reset();
+                    }
+                    
+                    _SignalGiven = true;
+
+                    if (_TimeoutExcedded)
+                    {
+                        _TimeoutExcedded = false;
+                        ForceToReleaseLease(objectsLockNeeded);
+                    }
+
+                    if (_LeaseReleased)
+                    {
+                        _LeaseReleased = false;
+                    }
+                    
                 }
-                /*else
-                {
-                    // Timeout.Run();
-                    WaitForMessagesOrTimeout();
-                    if (ReceivedMessages())
-                    {
-                        ModifyWaitingQueue();
-                    }
-                    if (TimeoutExceeded())
-                    {
-                        ReleaseLease();
-                    }
-                }*/
+                
             }
         } while (!canExecute);
 
         NotifyLeaseGranted();
         WaitForTransactionToFinishSignal();
         HandleLease(transactionId, objectsLockNeeded);
+    }
+    
+    // async timer
+    private async Task LeaseTimer()
+    {
+        Thread.Sleep(10000);
+        if (!_SignalGiven)
+        {
+            await Task.Delay(10000);
+            _TimeoutExcedded = true;
+            _leaseReleasedSignal.Set();
+        }
+    }
+
+    public void ForceToReleaseLease(List<string> objectsLockNeeded)
+    {
+        Dictionary<string, List<string>> objectsToRelease = new Dictionary<string, List<string>>();
+        foreach(var objectKey in objectsLockNeeded)
+        {
+            _objectsQueue.TryGetValue(objectKey, out var queue);
+            if (queue != null && queue.Count > 0 && queue.Peek() != _tmNick)
+            {
+                var tmNick = queue.Peek();
+                if (!objectsToRelease.ContainsKey(tmNick))
+                {
+                    objectsToRelease[tmNick] = new List<string>();
+                }
+                objectsToRelease[tmNick].Add(objectKey);
+            }
+        }
+        // for each tmNick, send a release lease request
+        foreach (var tmNick in objectsToRelease.Keys)
+        {
+            _transactionManagerPropagateService.ReleaseLease(tmNick, objectsToRelease[tmNick]);
+        }
+    }
+    
+    public void ReleaseLease(List<string> objectsLockNeeded)
+    {
+        var objectsReleased = new List<string>();
+        lock (this)
+        {
+            foreach (var objectKey in objectsLockNeeded)
+            {
+                _objectsQueue.TryGetValue(objectKey, out var queue);
+                if (queue != null && queue.Count > 0 && queue.Peek() == _tmNick)
+                {
+                    PopObjectQueue(objectKey);
+                    objectsReleased.Add(objectKey);
+                }
+            }
+        }
+        string transactionId = Guid.NewGuid().ToString();
+        if(objectsReleased.Count > 0) NotifyLeaseReleased(transactionId, objectsReleased);
     }
     
     public void RemoveLease(List<string> objectsLockNeeded)
@@ -153,30 +234,22 @@ public class LeaseHandler
         _leaseReleasedSignal.Set();
     }
 
-    public void HandleLease(string transactionId, List<string> objectsLockNeeded)
+    private void HandleLease(string transactionId, List<string> objectsLockNeeded)
     {
-        // if the queue of the objects only has the current TM, then don't need to remove. Otherwise, remove
-        /*foreach (var objectKey in objectsLockNeeded)
+        var objectsReleased = new List<string>();
+        foreach (var objectKey in objectsLockNeeded)
         {
             _objectsQueue.TryGetValue(objectKey, out var queue);
             if (queue != null && queue.Count > 1 && queue.Peek() == _tmNick)
             {
                 PopObjectQueue(objectKey);
-            }
-        }*/
-        // Pop the objects from the queue if tmNick is the first one
-        foreach (var objectKey in objectsLockNeeded)
-        {
-            _objectsQueue.TryGetValue(objectKey, out var queue);
-            if (queue != null && queue.Count > 0 && queue.Peek() == _tmNick)
-            {
-                PopObjectQueue(objectKey);
+                objectsReleased.Add(objectKey);
             }
         }
-        NotifyLeaseReleased(transactionId, objectsLockNeeded);
+        if(objectsReleased.Count > 0) NotifyLeaseReleased(transactionId, objectsReleased);
     }
     
-    public void NotifyLeaseReleased(string transactionId, List<string> objectsLockNeeded)
+    private void NotifyLeaseReleased(string transactionId, List<string> objectsLockNeeded)
     {
         _transactionManagerPropagateService.BroadcastLeaseReleased(transactionId, objectsLockNeeded);
     }
@@ -230,13 +303,17 @@ public class LeaseHandler
     
     public void PrintObjectsQueue()
     {
-        Console.WriteLine($"[LeaseHandler] Objects queue:");
-        foreach (var objectKey in _objectsQueue.Keys)
+        lock (_objectsQueue)
         {
-            Console.WriteLine($"[LeaseHandler] Object: {objectKey}");
-            foreach (var tmNick in _objectsQueue[objectKey])
+            Console.WriteLine($"[LeaseHandler] Objects queue: {_objectsQueue.Count}");
+            Console.WriteLine($"[LeaseHandler] Objects queue:");
+            foreach (var objectKey in _objectsQueue.Keys)
             {
-                Console.WriteLine($"[LeaseHandler] TM: {tmNick}");
+                Console.WriteLine($"[LeaseHandler] Object: {objectKey}");
+                foreach (var tmNick in _objectsQueue[objectKey])
+                {
+                    Console.WriteLine($"[LeaseHandler] TM: {tmNick}");
+                }
             }
         }
     }
