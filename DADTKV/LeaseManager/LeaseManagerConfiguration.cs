@@ -35,8 +35,6 @@
             _slotBehaviorsCount = int.Parse(args[argBreaker + 3]);
             slotBehaviors = ParseSlotBehaviors();
             startTime = DateTime.ParseExact(args[^1], "HH:mm:ss", null);
-            
-            PrintArgs();
         }
         
         private void ParseTmServers(out Dictionary<int, string> _tmIdsMap, out Dictionary<string, string> _tmServers) {
@@ -85,40 +83,6 @@
             
             return slotBehaviors;
         }
-
-        private void PrintArgs()
-        {
-            Console.WriteLine("lmNick: " + lmNick);
-            Console.WriteLine("lmUrl: " + lmUrl);
-            Console.WriteLine("lmId: " + lmId);
-            Console.WriteLine("Lm Id to Nick: ");
-            foreach (var map in lmIdsMap)
-            {
-                Console.WriteLine(map.Key + ": " + map.Value);
-            }
-            Console.WriteLine("LmServers: ");
-            foreach (var lmServer in lmServers)
-            {
-                Console.WriteLine(lmServer.Key + ": " + lmServer.Value);
-            }
-            Console.WriteLine("TmServers: ");
-            foreach (var tmServer in tmServers)
-            {
-                Console.WriteLine(tmServer);
-            }
-            Console.WriteLine("slotBehaviors: ");
-            foreach (var slot in slotBehaviors)
-            {
-                Console.Write("Slot: " + slot.Key + " Behavior: ");
-                foreach (var behavior in slot.Value)
-                {
-                   Console.Write(behavior + " "); 
-                }
-                Console.WriteLine();
-            }
-            Console.WriteLine("timeSlots: " + timeSlots);
-            Console.WriteLine("slotDuration: " + slotDuration);
-            Console.WriteLine("----------");
-        }
+        
     }
 }

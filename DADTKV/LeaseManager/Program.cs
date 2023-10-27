@@ -59,7 +59,7 @@ class Program
     {
         Program program = new Program(args);
         program._server.Start();
-        Console.WriteLine("Starting Lease Manager on: {0}", program._lmUrl);
+        Console.WriteLine("Starting Lease Manager: {0} on: {1}", program._lmNick, program._lmUrl);
         
         TimeSpan timeToStart = program._startTime - DateTime.Now;
         int msToWait = (int)timeToStart.TotalMilliseconds;
@@ -85,7 +85,11 @@ class Program
             program.Paxos();
             timeSlot++;
         }
-        
+
+        while (program._proposer.PaxosIsRunning()) // Trick to make sure that all paxos are finished
+        {
+            Thread.Sleep(1000);
+        }
         Console.WriteLine();
         Console.WriteLine("(LM): [ENDING PROGRAM...]");
         Console.WriteLine("(LM): Press any key to close...");

@@ -147,7 +147,7 @@ public class Proposer
             }
             else // Acceptors were in the same round as me
             {
-                Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value) + " by IDA: " + _IDa);
+                Console.WriteLine("(Proposer ID: {0}): Value decided for Round {1}: {2}", _IDp, _round, PrintLease(_value));
                 _lmService.SendLeases(_round, _value);
                 _lmState.RemoveLeases(_value);
                 _round++; 
